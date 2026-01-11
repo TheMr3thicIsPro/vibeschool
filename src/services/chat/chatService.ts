@@ -115,14 +115,15 @@ export const getConversationMessages = async (conversationId: string, limit = 50
 };
 
 // Send a message
-export const sendMessage = async (userId: string, conversationId: string, content: string) => {
-  console.log('sendMessage: Attempting to send message', { userId, conversationId, content });
+export const sendMessage = async (userId: string, conversationId: string, content: string, clientGeneratedId?: string) => {
+  console.log('sendMessage: Attempting to send message', { userId, conversationId, content, clientGeneratedId });
   const { data, error } = await supabase
     .from('messages')
     .insert({
       conversation_id: conversationId,
       sender_id: userId,
       content,
+      client_generated_id: clientGeneratedId
     })
     .select('*')
     .single();
@@ -267,8 +268,9 @@ export const subscribeToConversation = (
   
   // For real-time subscriptions, we'll use the global supabase client
   // since the subscription needs to persist
+  const channelName = `conversation-${conversationId}`;
   const subscription = supabase
-    .channel(`conversation-${conversationId}`)
+    .channel(channelName)
     .on(
       'postgres_changes',
       {

@@ -28,6 +28,7 @@ const SocialPage = () => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   const didRun = useRef(false)
@@ -64,7 +65,6 @@ const SocialPage = () => {
     console.log('SocialPage useEffect: Active conversation changed:', activeConversation);
     if (activeConversation) {
       loadMessages();
-      setupRealTimeListener();
     }
   }, [activeConversation]);
 
@@ -150,47 +150,84 @@ const SocialPage = () => {
     }
   };
 
-  const setupRealTimeListener = () => {
-    if (!activeConversation) {
-      console.log('setupRealTimeListener: No active conversation, returning');
-      return;
-    }
+  // Stable realtime subscription effect
+  useEffect(() => {
+    if (!activeConversation?.id) return;
     
-    console.log('setupRealTimeListener: Setting up real-time listener for conversation:', activeConversation.id);
-    // Subscribe to new messages in the active conversation
+    console.log('Realtime subscription: Setting up for conversation:', activeConversation.id);
+    
     const unsubscribe = subscribeToConversation(activeConversation.id, (payload) => {
-      console.log('setupRealTimeListener: Received new message via realtime:', payload);
+      console.log('Realtime subscription: Received new message via realtime:', payload);
       const newMessage = payload.new;
-      // Ensure the new message has the correct format
-      // Check for duplicates before adding
+      
       setMessages(prev => {
-        // Check if this message already exists in our state
+        // If the new message has a client_generated_id, it's likely our own message
+        if (newMessage.client_generated_id) {
+          // Look for an optimistic message with the same client_generated_id to replace it
+          const optimisticIndex = prev.findIndex(msg => 
+            (msg as any).client_generated_id === newMessage.client_generated_id
+          );
+          
+          if (optimisticIndex !== -1) {
+            // Replace the optimistic message with the real DB message
+            const updatedMessages = [...prev];
+            updatedMessages[optimisticIndex] = newMessage;
+            console.log('Realtime subscription: Replaced optimistic message with DB message');
+            return updatedMessages;
+          }
+        }
+        
+        // Check if this is a truly new message (not already in our state)
         const exists = prev.some(msg => msg.id === newMessage.id);
         if (exists) {
-          console.log('setupRealTimeListener: Duplicate message detected, skipping');
+          console.log('Realtime subscription: Duplicate message detected, skipping');
           return prev;
         }
+        
         // Add the new message to the list
+        console.log('Realtime subscription: Added new message from another user');
         return [...prev, newMessage];
       });
     });
 
-    console.log('setupRealTimeListener: Real-time subscription set up, returning unsubscribe function');
-    // Cleanup subscription on unmount
+    console.log('Realtime subscription: Established, returning cleanup function');
+    
     return () => {
-      console.log('setupRealTimeListener: Cleaning up subscription');
-      unsubscribe();
+      console.log('Realtime subscription: Cleaning up for conversation:', activeConversation.id);
+      unsubscribe?.();
     };
-  };
+  }, [activeConversation?.id]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || messageLoading || !user) {
-      console.log('handleSendMessage: Message not sent, validation failed:', { hasMessage: !!newMessage.trim(), hasActiveConversation: !!activeConversation, isLoading: messageLoading, hasUser: !!user });
+    if (!newMessage.trim() || !activeConversation || !user) {
+      console.log('handleSendMessage: Message not sent, validation failed:', { hasMessage: !!newMessage.trim(), hasActiveConversation: !!activeConversation, hasUser: !!user });
       return;
     }
 
+    // Create a client-generated ID for optimistic update reconciliation
+    const clientGeneratedId = crypto.randomUUID();
+    
     try {
       console.log('handleSendMessage: Attempting to send message:', { userId: user.id, conversationId: activeConversation.id, content: newMessage });
+      
+      // Create optimistic message
+      const optimisticMessage = {
+        id: 'optimistic-' + clientGeneratedId,
+        conversation_id: activeConversation.id,
+        sender_id: user.id,
+        content: newMessage,
+        created_at: new Date().toISOString(),
+        client_generated_id: clientGeneratedId,
+        _optimistic: true
+      };
+      
+      // Immediately add optimistic message to UI
+      setMessages(prev => [...prev, optimisticMessage]);
+      
+      // Clear input immediately
+      setNewMessage('');
+      
+      // Set loading state (only affects button, not message display)
       setMessageLoading(true);
       
       // Check if user is a member of the conversation
@@ -203,14 +240,29 @@ const SocialPage = () => {
         await getOrCreateGlobalHelpConversation();
       }
       
-      // Send message to Supabase - UI will update via realtime subscription
-      await sendMessage(user.id, activeConversation.id, newMessage);
-      console.log('handleSendMessage: Message sent to Supabase, waiting for realtime update');
+      // Send message to Supabase
+      const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
+      console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message');
       
-      // DO NOT manually add to state - let realtime subscription handle UI update
-      setNewMessage(''); // Clear input after sending
+      // Replace optimistic message with actual DB message
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.client_generated_id === clientGeneratedId ? dbMessage : msg
+        )
+      );
     } catch (err) {
       console.error('Failed to send message:', err);
+      
+      // Remove the optimistic message when sending fails
+      setMessages(prev => 
+        prev.filter(msg => 
+          !(msg as any)._optimistic || (msg as any).client_generated_id !== clientGeneratedId
+        )
+      );
+      
+      // Show error to user
+      setErrorMessage('Message failed to send. Please try again.');
+      setTimeout(() => setErrorMessage(null), 3000); // Clear error after 3 seconds
     } finally {
       setMessageLoading(false);
     }
@@ -407,6 +459,11 @@ const SocialPage = () => {
 
               {/* Message input */}
               <div className="p-4 border-t border-card-border">
+                {errorMessage && (
+                  <div className="mb-2 p-2 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
+                    {errorMessage}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
                     <textarea
