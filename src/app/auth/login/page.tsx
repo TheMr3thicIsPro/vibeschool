@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { mapSupabaseAuthError } from '@/lib/authErrors';
 import { supabase } from '@/lib/supabase';
@@ -17,7 +17,16 @@ const LoginPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   
   const router = useRouter();
+  const { state } = useAuthStore();
+  const { user } = state;
   
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/social');
+    }
+  }, [user, router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -39,6 +48,11 @@ const LoginPage = () => {
       setIsLoading(false);
     }
   };
+
+  // Don't render anything if user is already logged in
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

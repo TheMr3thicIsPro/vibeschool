@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { mapSupabaseAuthError } from '@/lib/authErrors';
+import { supabase } from '@/lib/supabase';
 
 const SignupPage = () => {
   const [email, setEmail] = useState('');
@@ -19,7 +20,15 @@ const SignupPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   
   const router = useRouter();
-  const { signUp } = useAuth();
+  const { state } = useAuthStore();
+  const { user } = state;
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/social');
+    }
+  }, [user, router]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,17 +50,30 @@ const SignupPage = () => {
     }
 
     try {
-      const result = await signUp(email, password, username);
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+          }
+        }
+      });
       
+      if (error) {
+        setErrorMessage(mapSupabaseAuthError(error));
+        return;
+      }
+
       // Check if user needs to confirm email
-      if (result.user && !result.session) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         // Email not confirmed yet
         setSuccessMessage('Check your email to verify your account');
       } else {
-        // User might be automatically signed in depending on Supabase settings
+        // User is automatically signed in
         setSuccessMessage('Account created successfully');
-        router.push('/dashboard');
-        router.refresh();
+        router.push('/social');
       }
     } catch (err: any) {
       setErrorMessage(mapSupabaseAuthError(err));
@@ -59,6 +81,11 @@ const SignupPage = () => {
       setIsLoading(false);
     }
   };
+
+  // Don't render anything if user is already logged in
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

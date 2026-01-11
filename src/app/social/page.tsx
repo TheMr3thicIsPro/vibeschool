@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { 
   getOrCreateGlobalHelpConversation, 
   getUserConversations, 
   getConversationMessages, 
   sendMessage,
-  subscribeToConversation,
+  subscribeToMessages,
   createDirectMessageConversation,
   getUserByUsername,
   checkConversationMembership
@@ -18,9 +18,11 @@ import { supabase } from '@/lib/supabase';
 import { MessageCircle, Send, Users, Search, Plus, User, Hash } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
+import ToastNotification from '@/components/ui/ToastNotification';
 
 const SocialPage = () => {
-  const { user } = useAuth();
+  const { state, dispatch } = useAuthStore();
+  const { user } = state;
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -29,7 +31,13 @@ const SocialPage = () => {
   const [loading, setLoading] = useState(true);
   const [messageLoading, setMessageLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [realtimeStatus, setRealtimeStatus] = useState<'idle'|'subscribed'|'error'|'closed'>('idle');
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const lastCreatedAtRef = useRef<string | null>(null);
+  const unsubscribeRef = useRef<null | (() => void)>(null);
+  const pollRef = useRef<any>(null);
 
   const didRun = useRef(false)
 
@@ -72,6 +80,50 @@ const SocialPage = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Listen for user changes to reload conversations and messages
+  useEffect(() => {
+    if (user) {
+      loadConversations();
+    }
+  }, [user?.id]); // Only reload when user ID changes
+
+  // Listen for auth state changes from other tabs
+  useEffect(() => {
+    const handleAuthStateChange = (event: any) => {
+      const { type, email } = event.detail;
+      
+      if (type === 'AUTH_STATE_CHANGED' && email) {
+        setToastMessage(`Account switched to user: ${email}`);
+        setShowToast(true);
+      } else if (type === 'SIGNED_OUT') {
+        setToastMessage('Account signed out from another tab');
+        setShowToast(true);
+      }
+    };
+
+    window.addEventListener('authStateChangeFromOtherTab', handleAuthStateChange);
+
+    return () => {
+      window.removeEventListener('authStateChangeFromOtherTab', handleAuthStateChange);
+    };
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup realtime subscription
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      // Cleanup polling
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, []);
 
   const loadConversations = async () => {
     try {
@@ -140,6 +192,17 @@ const SocialPage = () => {
       console.log('loadMessages: Got messages:', msgs);
       setMessages(msgs);
       
+      // Update the ref to track the latest message timestamp
+      if (msgs.length > 0) {
+        const latestMessage = msgs[msgs.length - 1];
+        lastCreatedAtRef.current = latestMessage.created_at;
+      } else {
+        lastCreatedAtRef.current = null;
+      }
+      
+      // Setup real-time subscription
+      setupRealtimeSubscription();
+      
       // Load members for the conversation
       console.log('loadMessages: Loading members for conversation:', activeConversation.id);
       const convMembers = await getConversationMembers(activeConversation.id);
@@ -150,53 +213,137 @@ const SocialPage = () => {
     }
   };
 
-  // Stable realtime subscription effect
-  useEffect(() => {
+  const setupRealtimeSubscription = () => {
+    // Clean up any existing subscription
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+    
+    // Clean up any existing polling
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    
     if (!activeConversation?.id) return;
     
-    console.log('Realtime subscription: Setting up for conversation:', activeConversation.id);
+    console.log('setupRealtimeSubscription: Setting up for conversation:', activeConversation.id);
     
-    const unsubscribe = subscribeToConversation(activeConversation.id, (payload) => {
-      console.log('Realtime subscription: Received new message via realtime:', payload);
-      const newMessage = payload.new;
-      
-      setMessages(prev => {
-        // If the new message has a client_generated_id, it's likely our own message
-        if (newMessage.client_generated_id) {
-          // Look for an optimistic message with the same client_generated_id to replace it
-          const optimisticIndex = prev.findIndex(msg => 
-            (msg as any).client_generated_id === newMessage.client_generated_id
-          );
+    // Set status to idle initially
+    setRealtimeStatus('idle');
+    
+    // Subscribe to messages
+    const unsubscribe = subscribeToMessages(
+      activeConversation.id,
+      (msg) => {
+        console.log('setupRealtimeSubscription: Received message via realtime:', msg);
+        setMessages(prev => {
+          // Check for duplicates by id
+          if (prev.some(m => m.id === msg.id)) {
+            console.log('setupRealtimeSubscription: Duplicate message by id, skipping');
+            return prev;
+          }
           
-          if (optimisticIndex !== -1) {
-            // Replace the optimistic message with the real DB message
-            const updatedMessages = [...prev];
-            updatedMessages[optimisticIndex] = newMessage;
-            console.log('Realtime subscription: Replaced optimistic message with DB message');
-            return updatedMessages;
+          // Check for optimistic message replacement
+          if (msg.client_generated_id) {
+            const optimisticIndex = prev.findIndex(m => m.client_generated_id === msg.client_generated_id);
+            if (optimisticIndex !== -1) {
+              console.log('setupRealtimeSubscription: Replacing optimistic message');
+              const updated = [...prev];
+              updated[optimisticIndex] = { ...msg, pending: false };
+              return updated;
+            }
+          }
+          
+          // Add new message
+          return [...prev, msg];
+        });
+        
+        // Update the ref to track the latest message timestamp
+        if (!lastCreatedAtRef.current || msg.created_at > lastCreatedAtRef.current) {
+          lastCreatedAtRef.current = msg.created_at;
+        }
+      },
+      (status, err) => {
+        console.log('setupRealtimeSubscription: Channel status:', status, err);
+        setRealtimeStatus(status.toLowerCase() as 'idle'|'subscribed'|'error'|'closed');
+        
+        // Start polling fallback if realtime fails
+        if (status === 'ERROR' || status === 'CLOSED') {
+          startPollingFallback();
+        }
+      }
+    );
+    
+    unsubscribeRef.current = unsubscribe;
+    
+    // Start polling fallback after 2 seconds if still not subscribed
+    setTimeout(() => {
+      setRealtimeStatus(currentStatus => {
+        if (currentStatus === 'idle') {
+          startPollingFallback();
+        }
+        return currentStatus;
+      });
+    }, 2000);
+  };
+
+  const startPollingFallback = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+    }
+    
+    console.log('startPollingFallback: Starting polling fallback');
+    pollRef.current = setInterval(async () => {
+      // Skip polling if tab is not visible
+      if (document.visibilityState !== 'visible') {
+        console.log('startPollingFallback: Tab not visible, skipping poll');
+        return;
+      }
+      
+      if (!activeConversation?.id) return;
+      
+      try {
+        const since = lastCreatedAtRef.current || undefined;
+        console.log('startPollingFallback: Polling for new messages since:', since);
+        const newMessages = await getConversationMessages(activeConversation.id, { since });
+        
+        if (newMessages.length > 0) {
+          console.log('startPollingFallback: Found new messages via polling:', newMessages);
+          setMessages(prev => {
+            // Filter out messages we already have
+            const filteredNewMessages = newMessages.filter(newMsg => 
+              !prev.some(existingMsg => existingMsg.id === newMsg.id)
+            );
+            
+            // Also handle optimistic message replacement
+            const updatedPrev = prev.map(msg => {
+              if (msg.client_generated_id) {
+                const matchingNew = newMessages.find(newMsg => newMsg.client_generated_id === msg.client_generated_id);
+                if (matchingNew) {
+                  return { ...matchingNew, pending: false };
+                }
+              }
+              return msg;
+            });
+            
+            return [...updatedPrev, ...filteredNewMessages];
+          });
+          
+          // Update the ref to track the latest message timestamp
+          if (newMessages.length > 0) {
+            const latestMessage = newMessages[newMessages.length - 1];
+            if (!lastCreatedAtRef.current || latestMessage.created_at > lastCreatedAtRef.current) {
+              lastCreatedAtRef.current = latestMessage.created_at;
+            }
           }
         }
-        
-        // Check if this is a truly new message (not already in our state)
-        const exists = prev.some(msg => msg.id === newMessage.id);
-        if (exists) {
-          console.log('Realtime subscription: Duplicate message detected, skipping');
-          return prev;
-        }
-        
-        // Add the new message to the list
-        console.log('Realtime subscription: Added new message from another user');
-        return [...prev, newMessage];
-      });
-    });
-
-    console.log('Realtime subscription: Established, returning cleanup function');
-    
-    return () => {
-      console.log('Realtime subscription: Cleaning up for conversation:', activeConversation.id);
-      unsubscribe?.();
-    };
-  }, [activeConversation?.id]);
+      } catch (error) {
+        console.error('startPollingFallback: Error polling for messages:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeConversation || !user) {
@@ -218,7 +365,7 @@ const SocialPage = () => {
         content: newMessage,
         created_at: new Date().toISOString(),
         client_generated_id: clientGeneratedId,
-        _optimistic: true
+        pending: true
       };
       
       // Immediately add optimistic message to UI
@@ -244,19 +391,14 @@ const SocialPage = () => {
       const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
       console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message');
       
-      // Replace optimistic message with actual DB message
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.client_generated_id === clientGeneratedId ? dbMessage : msg
-        )
-      );
+      // The message will be updated via realtime subscription when it comes back
     } catch (err) {
       console.error('Failed to send message:', err);
       
       // Remove the optimistic message when sending fails
       setMessages(prev => 
         prev.filter(msg => 
-          !(msg as any)._optimistic || (msg as any).client_generated_id !== clientGeneratedId
+          !(msg as any).pending || (msg as any).client_generated_id !== clientGeneratedId
         )
       );
       
@@ -279,6 +421,10 @@ const SocialPage = () => {
     }
   };
 
+  const handleReload = () => {
+    window.location.reload();
+  };
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -291,9 +437,28 @@ const SocialPage = () => {
     );
   }
 
+  if (!user) {
+    // Redirect to login if no user
+    return <ProtectedRoute><div>Redirecting...</div></ProtectedRoute>;
+  }
+
   return (
     <ProtectedRoute>
       <AppShell>
+        {/* Top bar with user info */}
+        <div className="absolute top-4 right-4 z-10">
+          <div className="flex items-center gap-2 bg-gray-800 p-2 rounded-lg border border-gray-700">
+            <span className="text-sm text-gray-300">Logged in as</span>
+            <span className="text-sm font-medium text-white">{user?.email || user?.id}</span>
+            <button 
+              onClick={() => supabase.auth.signOut()}
+              className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+        
         <div className="flex h-full bg-background">
           {/* Left sidebar - Conversations list */}
           <div className="w-80 bg-card-bg border-r border-card-border flex flex-col">
@@ -363,8 +528,7 @@ const SocialPage = () => {
                           <p className="text-xs text-gray-500">Direct message</p>
                         </div>
                       </div>
-                    ))
-                  }
+                    ))}
                   
                   {/* New DM button */}
                   <button 
@@ -422,6 +586,18 @@ const SocialPage = () => {
                     </p>
                   </div>
                 </div>
+                
+                {/* Realtime status indicator */}
+                <div className="ml-auto flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    realtimeStatus === 'subscribed' ? 'bg-green-500' : 
+                    realtimeStatus === 'error' || realtimeStatus === 'closed' ? 'bg-red-500' : 'bg-yellow-500'
+                  }`}></div>
+                  <span className="text-xs text-gray-400">
+                    {realtimeStatus === 'subscribed' ? 'Connected' : 
+                     realtimeStatus === 'error' || realtimeStatus === 'closed' ? 'Reconnecting...' : 'Connecting...'}
+                  </span>
+                </div>
               </div>
 
               {/* Messages area */}
@@ -448,8 +624,11 @@ const SocialPage = () => {
                           {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-                      <div className="mt-1 text-gray-300 bg-gray-800 p-3 rounded-lg max-w-3xl">
+                      <div className={`mt-1 text-gray-300 bg-gray-800 p-3 rounded-lg max-w-3xl ${
+                        message.pending ? 'opacity-60 italic' : ''
+                      }`}>
                         {message.content}
+                        {message.pending && <span className="ml-2 text-xs text-gray-400">Sending...</span>}
                       </div>
                     </div>
                   </div>
@@ -533,6 +712,14 @@ const SocialPage = () => {
             </div>
           </div>
         </div>
+        
+        {/* Toast notification for multi-tab auth changes */}
+        <ToastNotification 
+          message={toastMessage}
+          isVisible={showToast}
+          onClose={() => setShowToast(false)}
+          onReload={handleReload}
+        />
       </AppShell>
     </ProtectedRoute>
   );

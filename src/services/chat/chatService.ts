@@ -97,14 +97,20 @@ export const getUserConversations = async (userId: string) => {
 };
 
 // Get messages for a conversation
-export const getConversationMessages = async (conversationId: string, limit = 50, offset = 0) => {
-  console.log('getConversationMessages: Fetching messages for conversation:', conversationId);
-  const { data, error } = await supabase
+export const getConversationMessages = async (conversationId: string, opts?: { since?: string, limit?: number }) => {
+  console.log('getConversationMessages: Fetching messages for conversation:', conversationId, 'since:', opts?.since);
+  let query = supabase
     .from('messages')
     .select('*')
-    .eq('conversation_id', conversationId)
+    .eq('conversation_id', conversationId);
+    
+  if (opts?.since) {
+    query = query.gt('created_at', opts.since);
+  }
+  
+  const { data, error } = await query
     .order('created_at', { ascending: true })
-    .limit(limit);
+    .limit(opts?.limit ?? 50);
 
   console.log('getConversationMessages: Result', { data, error });
   if (error) {
@@ -117,14 +123,21 @@ export const getConversationMessages = async (conversationId: string, limit = 50
 // Send a message
 export const sendMessage = async (userId: string, conversationId: string, content: string, clientGeneratedId?: string) => {
   console.log('sendMessage: Attempting to send message', { userId, conversationId, content, clientGeneratedId });
+  
+  const messageData: any = {
+    conversation_id: conversationId,
+    sender_id: userId,
+    content,
+  };
+  
+  // Only add client_generated_id if provided
+  if (clientGeneratedId) {
+    messageData.client_generated_id = clientGeneratedId;
+  }
+  
   const { data, error } = await supabase
     .from('messages')
-    .insert({
-      conversation_id: conversationId,
-      sender_id: userId,
-      content,
-      client_generated_id: clientGeneratedId
-    })
+    .insert(messageData)
     .select('*')
     .single();
 
@@ -292,6 +305,47 @@ export const subscribeToConversation = (
     supabase.removeChannel(subscription);
   };
 };
+
+// Subscribe to messages in a conversation
+export function subscribeToMessages(
+  conversationId: string,
+  onInsert: (msg: any) => void,
+  onStatus?: (status: 'SUBSCRIBED' | 'ERROR' | 'CLOSED', err?: unknown) => void
+): () => void {
+  console.log('subscribeToMessages: Setting up subscription for conversation:', conversationId);
+  
+  const channel = supabase
+    .channel(`messages:${conversationId}`)
+    .on(
+      'postgres_changes',
+      { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages', 
+        filter: `conversation_id=eq.${conversationId}` 
+      },
+      (payload) => {
+        console.log('subscribeToMessages: Received new message via realtime:', payload);
+        const msg = payload.new;
+        onInsert(msg);
+      }
+    )
+    .subscribe((status) => {
+      console.log('subscribeToMessages: Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        onStatus?.('SUBSCRIBED');
+      } else if (status === 'CHANNEL_ERROR') {
+        onStatus?.('ERROR');
+      } else if (status === 'CLOSED') {
+        onStatus?.('CLOSED');
+      }
+    });
+
+  return () => { 
+    console.log('subscribeToMessages: Removing subscription');
+    supabase.removeChannel(channel); 
+  };
+}
 
 // Subscribe to real-time reactions on messages
 export const subscribeToReactions = (
