@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { getTasksByLesson, getUserTaskSubmission, submitTask } from '@/services/taskService';
 import { getTaskFeedback } from '@/services/ai/aiService';
 import { FileText, Code, Send, CheckCircle, MessageCircle, Star, Lightbulb } from 'lucide-react';
@@ -9,7 +9,8 @@ interface TaskComponentProps {
 }
 
 const TaskComponent = ({ lessonId }: TaskComponentProps) => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [tasks, setTasks] = useState<any[]>([]);
   const [currentTask, setCurrentTask] = useState<any>(null);
   const [submission, setSubmission] = useState('');

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { getUserProfile } from '@/services/profileService';
 import { getAllCourses } from '@/services/courseService';
 import { getUserOverallProgress } from '@/services/progressService';
@@ -11,7 +11,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const TestPage = () => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [tests, setTests] = useState<any>({});
   const [loading, setLoading] = useState(true);
 

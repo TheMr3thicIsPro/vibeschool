@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { ensureProfile } from '@/lib/ensureProfile';
 import { supabase } from '@/lib/supabase';
 import { BookOpen, Calendar, TrendingUp, Award } from 'lucide-react';
@@ -9,7 +9,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 

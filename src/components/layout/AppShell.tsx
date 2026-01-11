@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import Sidebar from './Sidebar';
 import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,7 +11,9 @@ interface AppShellProps {
 }
 
 const AppShell = ({ children }: AppShellProps) => {
-  const { user, loading } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
+  const loading = state.loading;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Show sidebar only when user is authenticated

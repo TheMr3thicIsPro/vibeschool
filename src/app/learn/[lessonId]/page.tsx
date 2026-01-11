@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { getLessonById } from '@/services/courseService';
 import { updateProgress } from '@/services/progressService';
 import { Play, SkipForward, CheckCircle, Circle, BookOpen, FileText, CheckSquare } from 'lucide-react';
@@ -12,7 +12,8 @@ import AppShell from '@/components/layout/AppShell';
 const LessonDetailPage = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [lesson, setLesson] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'lesson' | 'task' | 'notes'>('lesson');

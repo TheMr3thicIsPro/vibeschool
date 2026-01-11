@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { getUserOverallProgress, getUserCourseProgress } from '@/services/progressService';
 
 interface ProgressDisplayProps {
@@ -7,7 +7,8 @@ interface ProgressDisplayProps {
 }
 
 const ProgressDisplay = ({ courseId }: ProgressDisplayProps) => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [progress, setProgress] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 

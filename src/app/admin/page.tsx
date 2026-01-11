@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { 
   getAllCourses, 
   getModulesByCourse, 
@@ -15,7 +15,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const AdminPage = () => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [activeTab, setActiveTab] = useState<'courses' | 'modules' | 'lessons'>('courses');
   const [courses, setCourses] = useState<any[]>([]);
   const [modules, setModules] = useState<any[]>([]);

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -12,7 +12,6 @@ const ForgotPasswordPage = () => {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const { forgotPassword } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +20,14 @@ const ForgotPasswordPage = () => {
     setSuccess(false);
 
     try {
-      await forgotPassword(email);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/update-password`,
+      });
+      
+      if (error) {
+        throw error;
+      }
+      
       setSuccess(true);
     } catch (err: any) {
       setError(err.error_description || err.message || 'Failed to send reset email');

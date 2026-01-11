@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { getAllCourses, getModulesByCourse } from '@/services/courseService';
 import { BookOpen, Play, Lock, CheckCircle, Circle } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const LearnPage = () => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [modules, setModules] = useState<any[]>([]);

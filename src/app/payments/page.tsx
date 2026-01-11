@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthStore } from '@/context/AuthContext';
 import { checkUserAccess, getUserPurchases } from '@/services/payment/paymentService';
 import { CreditCard, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const PaymentsPage = () => {
-  const { user } = useAuth();
+  const { state } = useAuthStore();
+  const user = state.user;
   const [userAccess, setUserAccess] = useState(false);
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
