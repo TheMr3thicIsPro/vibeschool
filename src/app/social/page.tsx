@@ -162,7 +162,17 @@ const SocialPage = () => {
       console.log('setupRealTimeListener: Received new message via realtime:', payload);
       const newMessage = payload.new;
       // Ensure the new message has the correct format
-      setMessages(prev => [...prev, newMessage]);
+      // Check for duplicates before adding
+      setMessages(prev => {
+        // Check if this message already exists in our state
+        const exists = prev.some(msg => msg.id === newMessage.id);
+        if (exists) {
+          console.log('setupRealTimeListener: Duplicate message detected, skipping');
+          return prev;
+        }
+        // Add the new message to the list
+        return [...prev, newMessage];
+      });
     });
 
     console.log('setupRealTimeListener: Real-time subscription set up, returning unsubscribe function');
@@ -193,10 +203,11 @@ const SocialPage = () => {
         await getOrCreateGlobalHelpConversation();
       }
       
-      const sentMessage = await sendMessage(user.id, activeConversation.id, newMessage);
-      console.log('handleSendMessage: Message sent successfully', sentMessage);
-      // Add the new message to the messages list
-      setMessages(prev => [...prev, sentMessage]);
+      // Send message to Supabase - UI will update via realtime subscription
+      await sendMessage(user.id, activeConversation.id, newMessage);
+      console.log('handleSendMessage: Message sent to Supabase, waiting for realtime update');
+      
+      // DO NOT manually add to state - let realtime subscription handle UI update
       setNewMessage(''); // Clear input after sending
     } catch (err) {
       console.error('Failed to send message:', err);

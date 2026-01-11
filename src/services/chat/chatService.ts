@@ -103,7 +103,7 @@ export const getConversationMessages = async (conversationId: string, limit = 50
     .from('messages')
     .select('*')
     .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: false })
+    .order('created_at', { ascending: true })
     .limit(limit);
 
   console.log('getConversationMessages: Result', { data, error });
