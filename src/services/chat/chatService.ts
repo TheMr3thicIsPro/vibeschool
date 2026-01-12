@@ -310,7 +310,7 @@ export const subscribeToConversation = (
 export function subscribeToMessages(
   conversationId: string,
   onInsert: (msg: any) => void,
-  onStatus?: (status: 'SUBSCRIBED' | 'ERROR' | 'CLOSED', err?: unknown) => void
+  onStatus?: (status: 'SUBSCRIBED' | 'CHANNEL_ERROR' | 'TIMED_OUT' | 'CLOSED', err?: unknown) => void
 ): () => void {
   let intentionalClose = false;
   console.log('subscribeToMessages: Setting up subscription for conversation:', conversationId);
@@ -334,7 +334,7 @@ export function subscribeToMessages(
     .subscribe((status, err) => {
       console.log('subscribeToMessages: Subscription status:', status);
       if (status === 'CLOSED' && intentionalClose) return;
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') onStatus?.('ERROR', err);
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') onStatus?.('CHANNEL_ERROR', err);
       else if (status === 'SUBSCRIBED') onStatus?.('SUBSCRIBED');
       else if (status === 'CLOSED') onStatus?.('CLOSED');
     });

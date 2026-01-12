@@ -19,6 +19,7 @@ import { MessageCircle, Send, Users, Search, Plus, User, Hash } from 'lucide-rea
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import ToastNotification from '@/components/ui/ToastNotification';
+import { dedupeAndSortMessages, replaceOptimisticMessage } from '@/utils/messageUtils';
 
 const SocialPage = () => {
   const { state, dispatch } = useAuthStore();
@@ -200,11 +201,14 @@ const SocialPage = () => {
       console.log('loadMessages: Loading messages for conversation:', activeConversation.id);
       const msgs = await getConversationMessages(activeConversation.id);
       console.log('loadMessages: Got messages:', msgs);
-      setMessages(msgs);
+      
+      // Sort messages by created_at to ensure chronological order
+      const sortedMessages = [...msgs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      setMessages(sortedMessages);
       
       // Update the ref to track the latest message timestamp
-      if (msgs.length > 0) {
-        const latestMessage = msgs[msgs.length - 1];
+      if (sortedMessages.length > 0) {
+        const latestMessage = sortedMessages[sortedMessages.length - 1];
         lastCreatedAtRef.current = latestMessage.created_at;
       } else {
         lastCreatedAtRef.current = null;
@@ -281,8 +285,10 @@ const SocialPage = () => {
             return updated;
           }
           
-          // Add new message
-          return [...prev, msg];
+          // Add new message - sort by created_at to ensure chronological order
+          const newMessages = [...prev, msg];
+          newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          return newMessages;
         });
         
         // Update the ref to track the latest message timestamp
@@ -292,11 +298,18 @@ const SocialPage = () => {
       },
       (status, err) => {
         console.log('setupRealtimeSubscription: Channel status:', status, err);
-        setRealtimeStatus(status.toLowerCase() as 'idle'|'subscribed'|'error'|'closed');
+        // Map the actual Supabase status to our UI status
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('subscribed');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus('error');
+        } else if (status === 'CLOSED') {
+          setRealtimeStatus('closed');
+        }
         
         // Start polling fallback only if realtime errors or times out
         // Don't start polling if the channel was intentionally closed
-        if (status === 'ERROR') {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           startPollingFallback();
         }
       }
@@ -430,7 +443,16 @@ const SocialPage = () => {
       const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
       console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message');
       
-      // The message will be updated via realtime subscription when it comes back
+      // IMMEDIATELY update the UI to replace the optimistic message with the real one
+      // This ensures the UI reflects the actual state regardless of real-time delivery
+      setMessages(prev => 
+        prev.map(msg => {
+          if (msg.client_generated_id === clientGeneratedId) {
+            return { ...dbMessage, pending: false };
+          }
+          return msg;
+        })
+      );
     } catch (err) {
       console.error('Failed to send message:', err);
       

@@ -1,14 +1,22 @@
 import { supabase } from './supabase';
 
+let authListenerInstance: { unsubscribe: () => void } | null = null;
+
 const authChannel = new BroadcastChannel('auth');
 
 interface AuthBroadcastMessage {
-  type: 'AUTH_STATE_CHANGED' | 'TOKEN_REFRESHED' | 'USER_UPDATED' | 'SIGNED_OUT';
+  type: 'AUTH_STATE_CHANGED' | 'TOKEN_REFRESHED' | 'USER_UPDATED' | 'SIGNED_OUT' | 'INITIAL_SESSION';
   userId?: string | null;
   email?: string | null;
 }
 
 export const initAuthListener = (dispatch: React.Dispatch<any>) => {
+  // If already initialized, return the existing cleanup function
+  if (authListenerInstance) {
+    console.log('Auth listener already initialized, returning existing instance');
+    return authListenerInstance.unsubscribe;
+  }
+
   console.log('Initializing auth listener');
   
   // Listen for auth state changes
@@ -74,6 +82,25 @@ export const initAuthListener = (dispatch: React.Dispatch<any>) => {
           }
           break;
           
+        case 'INITIAL_SESSION':
+          if (session) {
+            console.log('Initial session set:', session.user?.id);
+            dispatch({ type: 'SET_USER', payload: session.user });
+            dispatch({ type: 'SET_SESSION', payload: session });
+            dispatch({ type: 'SET_LOADING', payload: false });
+            
+            // Broadcast to other tabs if needed
+            if (session.user) {
+              const message: AuthBroadcastMessage = {
+                type: 'AUTH_STATE_CHANGED',
+                userId: session.user.id,
+                email: session.user.email
+              };
+              authChannel.postMessage(message);
+            }
+          }
+          break;
+          
         default:
           console.log('Unhandled auth event:', event);
       }
@@ -117,10 +144,15 @@ export const initAuthListener = (dispatch: React.Dispatch<any>) => {
     }
   };
 
-  // Clean up function
-  return () => {
-    console.log('Cleaning up auth listener');
-    subscription?.unsubscribe();
-    authChannel.close();
+  // Store the instance to prevent duplicate registration
+  authListenerInstance = {
+    unsubscribe: () => {
+      console.log('Cleaning up auth listener');
+      subscription?.unsubscribe();
+      authChannel.close();
+      authListenerInstance = null;
+    }
   };
+
+  return authListenerInstance.unsubscribe;
 };
