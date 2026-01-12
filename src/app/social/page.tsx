@@ -701,7 +701,7 @@ const SocialPage = () => {
                 {messages.map((message, index) => {
                   const isMe = message.sender_id === user?.id;
                   const senderProfile = members.find(member => member.user_id === message.sender_id)?.profiles;
-                  const displayName = isMe ? 'You' : senderProfile?.username || 'Member';
+                  const displayName = isMe ? 'You' : senderProfile?.username || senderProfile?.email?.split('@')[0] || `User ${message.sender_id?.slice(0, 8)}`;
                   const displayAvatar = senderProfile?.avatar_url || (senderProfile?.username?.charAt(0).toUpperCase() || 'M');
                   
                   // Log message rendering
