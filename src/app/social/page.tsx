@@ -136,6 +136,145 @@ const SocialPage = () => {
     };
   }, []);
 
+  // State for session conflict warning
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+
+  // Effect to detect session conflicts when user changes
+  useEffect(() => {
+    if (user) {
+      console.log('SocialPage: User changed, user ID:', user.id);
+      // Show session warning in development mode
+      if (process.env.NODE_ENV === 'development') {
+        setShowSessionWarning(true);
+        setTimeout(() => setShowSessionWarning(false), 5000); // Hide after 5 seconds
+      }
+    }
+  }, [user?.id]);
+
+  // Stable realtime subscription effect with proper dependencies
+  useEffect(() => {
+    const activeConversationId = activeConversation?.id;
+    console.log('SocialPage useEffect: Active conversation changed:', activeConversationId, 'User ID:', user?.id);
+    
+    if (!user || !activeConversationId) {
+      console.log('SocialPage: Missing user or conversation, returning');
+      return;
+    }
+    
+    // Clean up any existing subscription
+    if (unsubscribeRef.current) {
+      console.log('SocialPage: Removing previous subscription for conversation:', activeConversationId);
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+    
+    // Clean up any existing polling
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    
+    console.log('SocialPage: Setting up new subscription for conversation:', activeConversationId);
+    
+    // Set status to idle initially
+    setRealtimeStatus('idle');
+    
+    // Subscribe to messages
+    const unsubscribe = subscribeToMessages(
+      activeConversationId,
+      (msg) => {
+        console.log('SocialPage: Received message via realtime:', msg);
+        setMessages(prev => {
+          // Check for duplicates by id
+          if (prev.some(m => m.id === msg.id)) {
+            console.log('SocialPage: Duplicate message by id, skipping');
+            return prev;
+          }
+          
+          // Check for optimistic message replacement
+          if (msg.client_generated_id) {
+            const optimisticIndex = prev.findIndex(m => m.client_generated_id === msg.client_generated_id);
+            if (optimisticIndex !== -1) {
+              console.log('SocialPage: Replacing optimistic message via client_generated_id');
+              const updated = [...prev];
+              updated[optimisticIndex] = { ...msg, pending: false };
+              return updated;
+            }
+          }
+          
+          // Fallback: Check if this might be a message we sent recently that didn't have client_generated_id returned
+          // This can happen if RLS policies don't return the client_generated_id field
+          const optimisticIndex = prev.findIndex(m => 
+            m.pending && 
+            m.content === msg.content && 
+            m.sender_id === msg.sender_id &&
+            Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000 // Within 5 seconds
+          );
+          if (optimisticIndex !== -1) {
+            console.log('SocialPage: Replacing optimistic message via content match');
+            const updated = [...prev];
+            updated[optimisticIndex] = { ...msg, pending: false };
+            return updated;
+          }
+          
+          // Add new message - sort by created_at to ensure chronological order
+          const newMessages = [...prev, msg];
+          newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          return newMessages;
+        });
+        
+        // Update the ref to track the latest message timestamp
+        if (!lastCreatedAtRef.current || msg.created_at > lastCreatedAtRef.current) {
+          lastCreatedAtRef.current = msg.created_at;
+        }
+      },
+      (status, err) => {
+        console.log('SocialPage: Channel status:', status, 'Error:', err);
+        // Map the actual Supabase status to our UI status
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('subscribed');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setRealtimeStatus('error');
+        } else if (status === 'CLOSED') {
+          setRealtimeStatus('closed');
+        }
+        
+        // Start polling fallback only if realtime errors or times out
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.log('SocialPage: Starting polling fallback due to error');
+          startPollingFallback();
+        }
+      }
+    );
+    
+    unsubscribeRef.current = unsubscribe;
+    
+    // Start polling fallback after 2 seconds if still not subscribed
+    setTimeout(() => {
+      setRealtimeStatus(currentStatus => {
+        if (currentStatus === 'idle') {
+          console.log('SocialPage: Starting polling fallback after timeout');
+          startPollingFallback();
+        }
+        return currentStatus;
+      });
+    }, 2000);
+
+    // Cleanup function
+    return () => {
+      console.log('SocialPage: Cleaning up subscription for conversation:', activeConversationId);
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+      
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [user?.id, activeConversation?.id]); // Only depend on user ID and active conversation ID
+
   const loadConversations = async () => {
     try {
       console.log('loadConversations: Starting to load conversations...');
@@ -441,7 +580,7 @@ const SocialPage = () => {
       
       // Send message to Supabase
       const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
-      console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message');
+      console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message with server response:', dbMessage);
       
       // IMMEDIATELY update the UI to replace the optimistic message with the real one
       // This ensures the UI reflects the actual state regardless of real-time delivery
@@ -506,6 +645,15 @@ const SocialPage = () => {
   return (
     <ProtectedRoute>
       <AppShell>
+        {/* Session conflict warning banner */}
+        {showSessionWarning && (
+          <div className="fixed top-16 left-0 right-0 z-50 bg-yellow-900 border-b border-yellow-700 p-2 text-center">
+            <p className="text-yellow-200 text-sm">
+              Multiple accounts in same browser profile share one session. Use different profiles for isolation.
+            </p>
+          </div>
+        )}
+        
         {/* Top bar with user info */}
         <div className="absolute top-4 right-4 z-10">
           <div className="flex items-center gap-2 bg-gray-800 p-2 rounded-lg border border-gray-700">

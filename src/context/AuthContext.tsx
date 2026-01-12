@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { initAuthListener } from '@/lib/authListener';
 
@@ -52,35 +52,109 @@ const authReducer = (state: UserState, action: Action): UserState => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const authSubscriptionRef = useRef<any>(null);
+  const broadcastListenerRef = useRef<(() => void) | null>(null);
 
   // Initialize auth state on mount
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        console.log('AuthProvider: Initializing auth state');
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
+          console.log('AuthProvider: Session found, setting user and session');
           dispatch({ type: 'SET_USER', payload: session.user });
           dispatch({ type: 'SET_SESSION', payload: session });
+        } else {
+          console.log('AuthProvider: No session found');
         }
         
         dispatch({ type: 'SET_LOADING', payload: false });
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        console.error('AuthProvider: Error initializing auth:', error);
         dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
+    // Initialize broadcast listener for cross-tab communication
+    broadcastListenerRef.current = initAuthListener(dispatch);
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthProvider: Auth state change event:', event, 'User ID:', session?.user?.id);
+      
+      try {
+        switch (event) {
+          case 'INITIAL_SESSION':
+            console.log('AuthProvider: Handling INITIAL_SESSION event');
+            if (session) {
+              dispatch({ type: 'SET_USER', payload: session.user });
+              dispatch({ type: 'SET_SESSION', payload: session });
+              dispatch({ type: 'SET_LOADING', payload: false });
+            }
+            break;
+            
+          case 'SIGNED_IN':
+            console.log('AuthProvider: Handling SIGNED_IN event for user:', session?.user?.id);
+            if (session?.user) {
+              // Check if user ID changed to trigger resubscribe
+              if (state.user?.id !== session.user.id) {
+                console.log('AuthProvider: User ID changed, updating state');
+              }
+              dispatch({ type: 'SET_USER', payload: session.user });
+              dispatch({ type: 'SET_SESSION', payload: session });
+              dispatch({ type: 'SET_LOADING', payload: false });
+            }
+            break;
+            
+          case 'SIGNED_OUT':
+            console.log('AuthProvider: Handling SIGNED_OUT event');
+            dispatch({ type: 'RESET' });
+            break;
+            
+          case 'TOKEN_REFRESHED':
+            console.log('AuthProvider: Handling TOKEN_REFRESHED event');
+            if (session) {
+              dispatch({ type: 'SET_SESSION', payload: session });
+            }
+            break;
+            
+          case 'USER_UPDATED':
+            console.log('AuthProvider: Handling USER_UPDATED event');
+            if (session?.user) {
+              dispatch({ type: 'SET_USER', payload: session.user });
+            }
+            break;
+            
+          default:
+            console.log('AuthProvider: Unhandled auth event:', event);
+        }
+      } catch (error) {
+        console.error('AuthProvider: Error in auth state change handler:', error);
+        dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
+      }
+    });
+
+    authSubscriptionRef.current = subscription;
+
     // Initialize auth state
     initializeAuth();
-    
-    // Initialize auth listener
-    const cleanup = initAuthListener(dispatch);
-    
+
     // Clean up on unmount
     return () => {
-      cleanup();
+      console.log('AuthProvider: Cleaning up auth subscription');
+      if (authSubscriptionRef.current) {
+        authSubscriptionRef.current.unsubscribe?.();
+        authSubscriptionRef.current = null;
+      }
+      
+      // Clean up broadcast listener
+      if (broadcastListenerRef.current) {
+        broadcastListenerRef.current();
+        broadcastListenerRef.current = null;
+      }
     };
   }, []);
 

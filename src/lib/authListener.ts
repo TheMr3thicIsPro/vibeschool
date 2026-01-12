@@ -19,97 +19,6 @@ export const initAuthListener = (dispatch: React.Dispatch<any>) => {
 
   console.log('Initializing auth listener');
   
-  // Listen for auth state changes
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state change event:', event, session);
-    
-    try {
-      switch (event) {
-        case 'SIGNED_IN':
-          if (session?.user) {
-            console.log('User signed in:', session.user.id);
-            dispatch({ type: 'SET_USER', payload: session.user });
-            dispatch({ type: 'SET_SESSION', payload: session });
-            dispatch({ type: 'SET_LOADING', payload: false });
-            
-            // Broadcast to other tabs
-            const message: AuthBroadcastMessage = {
-              type: 'AUTH_STATE_CHANGED',
-              userId: session.user.id,
-              email: session.user.email
-            };
-            authChannel.postMessage(message);
-          }
-          break;
-          
-        case 'SIGNED_OUT':
-          console.log('User signed out');
-          dispatch({ type: 'RESET' });
-          
-          // Broadcast to other tabs
-          const message: AuthBroadcastMessage = {
-            type: 'SIGNED_OUT'
-          };
-          authChannel.postMessage(message);
-          break;
-          
-        case 'TOKEN_REFRESHED':
-          if (session) {
-            console.log('Token refreshed for user:', session.user?.id);
-            dispatch({ type: 'SET_SESSION', payload: session });
-            
-            // Broadcast to other tabs
-            const message: AuthBroadcastMessage = {
-              type: 'TOKEN_REFRESHED',
-              userId: session.user?.id
-            };
-            authChannel.postMessage(message);
-          }
-          break;
-          
-        case 'USER_UPDATED':
-          if (session?.user) {
-            console.log('User updated:', session.user.id);
-            dispatch({ type: 'SET_USER', payload: session.user });
-            
-            // Broadcast to other tabs
-            const message: AuthBroadcastMessage = {
-              type: 'USER_UPDATED',
-              userId: session.user.id,
-              email: session.user.email
-            };
-            authChannel.postMessage(message);
-          }
-          break;
-          
-        case 'INITIAL_SESSION':
-          if (session) {
-            console.log('Initial session set:', session.user?.id);
-            dispatch({ type: 'SET_USER', payload: session.user });
-            dispatch({ type: 'SET_SESSION', payload: session });
-            dispatch({ type: 'SET_LOADING', payload: false });
-            
-            // Broadcast to other tabs if needed
-            if (session.user) {
-              const message: AuthBroadcastMessage = {
-                type: 'AUTH_STATE_CHANGED',
-                userId: session.user.id,
-                email: session.user.email
-              };
-              authChannel.postMessage(message);
-            }
-          }
-          break;
-          
-        default:
-          console.log('Unhandled auth event:', event);
-      }
-    } catch (error) {
-      console.error('Error in auth state change handler:', error);
-      dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
-    }
-  });
-
   // Listen for messages from other tabs
   authChannel.onmessage = (event) => {
     const message: AuthBroadcastMessage = event.data;
@@ -148,7 +57,6 @@ export const initAuthListener = (dispatch: React.Dispatch<any>) => {
   authListenerInstance = {
     unsubscribe: () => {
       console.log('Cleaning up auth listener');
-      subscription?.unsubscribe();
       authChannel.close();
       authListenerInstance = null;
     }
