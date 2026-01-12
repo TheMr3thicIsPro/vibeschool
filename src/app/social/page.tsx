@@ -553,19 +553,7 @@ const SocialPage = () => {
           </div>
         )}
         
-        {/* Top bar with user info */}
-        <div className="absolute top-4 right-4 z-10">
-          <div className="flex items-center gap-2 bg-gray-800 p-2 rounded-lg border border-gray-700">
-            <span className="text-sm text-gray-300">Logged in as</span>
-            <span className="text-sm font-medium text-white">{user?.email || user?.id}</span>
-            <button 
-              onClick={() => supabase.auth.signOut()}
-              className="ml-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
+
         
         <div className="flex h-full bg-background">
           {/* Left sidebar - Conversations list */}
