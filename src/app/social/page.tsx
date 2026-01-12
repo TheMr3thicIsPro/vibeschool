@@ -386,7 +386,7 @@ const SocialPage = () => {
         console.log('loadMessages: Set lastCreatedAtRef to:', latestMessage.created_at);
       }
       
-      // Load members for the conversation
+      // Load members for the conversation with proper username sync
       console.log('loadMessages: Loading members for conversation:', activeConversation.id);
       const membersResponse = await supabase
         .from('conversation_members')
@@ -399,7 +399,16 @@ const SocialPage = () => {
             avatar_url
           )
         `)
-        .eq('conversation_id', activeConversation.id);
+        .eq('conversation_id', activeConversation.id)
+        .returns<{
+          user_id: string;
+          role: string;
+          profiles: {
+            username: string;
+            email: string;
+            avatar_url: string;
+          };
+        }[]>();
       
       if (membersResponse.error) {
         console.error('loadMessages: Error loading members:', membersResponse.error);
@@ -415,6 +424,16 @@ const SocialPage = () => {
   // Load messages when active conversation changes
   useEffect(() => {
     loadMessages();
+    
+    // Set up periodic refresh of member data to ensure latest usernames are shown
+    const memberRefreshInterval = setInterval(() => {
+      refreshMembers();
+    }, 30000); // Refresh every 30 seconds
+    
+    // Cleanup interval on unmount or conversation change
+    return () => {
+      clearInterval(memberRefreshInterval);
+    };
   }, [activeConversation?.id]);
 
 
@@ -522,6 +541,45 @@ const SocialPage = () => {
 
   const handleReload = () => {
     window.location.reload();
+  };
+
+  // Function to refresh member data to ensure latest usernames are shown
+  const refreshMembers = async () => {
+    if (!activeConversation?.id) return;
+    
+    try {
+      console.log('refreshMembers: Refreshing member data for conversation:', activeConversation.id);
+      const membersResponse = await supabase
+        .from('conversation_members')
+        .select(`
+          user_id,
+          role,
+          profiles:user_id (
+            username,
+            email,
+            avatar_url
+          )
+        `)
+        .eq('conversation_id', activeConversation.id)
+        .returns<{
+          user_id: string;
+          role: string;
+          profiles: {
+            username: string;
+            email: string;
+            avatar_url: string;
+          };
+        }[]>();
+      
+      if (membersResponse.error) {
+        console.error('refreshMembers: Error refreshing members:', membersResponse.error);
+      } else {
+        console.log('refreshMembers: Refreshed members:', membersResponse.data.length, 'members');
+        setMembers(membersResponse.data);
+      }
+    } catch (error) {
+      console.error('refreshMembers: Unexpected error:', error);
+    }
   };
 
   if (loading) {
