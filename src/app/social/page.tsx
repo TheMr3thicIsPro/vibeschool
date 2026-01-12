@@ -38,6 +38,7 @@ const SocialPage = () => {
   const lastCreatedAtRef = useRef<string | null>(null);
   const unsubscribeRef = useRef<null | (() => void)>(null);
   const pollRef = useRef<any>(null);
+  const currentConversationIdRef = useRef<string | null>(null);
 
   const didRun = useRef(false)
 
@@ -70,11 +71,20 @@ const SocialPage = () => {
   }, [user, supabase]);
 
   useEffect(() => {
-    console.log('SocialPage useEffect: Active conversation changed:', activeConversation);
-    if (activeConversation) {
-      loadMessages();
-    }
-  }, [activeConversation]);
+    const activeConversationId = activeConversation?.id ?? null;
+    console.log('SocialPage useEffect: Active conversation changed:', activeConversationId);
+    
+    if (!activeConversationId) return;
+    
+    // Prevent duplicate setup for same conversation id
+    if (currentConversationIdRef.current === activeConversationId) return;
+    
+    // Update the current conversation id ref
+    currentConversationIdRef.current = activeConversationId;
+    
+    // Load messages for the new conversation
+    loadMessages();
+  }, [activeConversation?.id]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -269,8 +279,9 @@ const SocialPage = () => {
         console.log('setupRealtimeSubscription: Channel status:', status, err);
         setRealtimeStatus(status.toLowerCase() as 'idle'|'subscribed'|'error'|'closed');
         
-        // Start polling fallback if realtime fails
-        if (status === 'ERROR' || status === 'CLOSED') {
+        // Start polling fallback only if realtime errors or times out
+        // Don't start polling if the channel was intentionally closed
+        if (status === 'ERROR') {
           startPollingFallback();
         }
       }

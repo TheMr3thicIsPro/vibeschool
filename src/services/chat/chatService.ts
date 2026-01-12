@@ -312,6 +312,7 @@ export function subscribeToMessages(
   onInsert: (msg: any) => void,
   onStatus?: (status: 'SUBSCRIBED' | 'ERROR' | 'CLOSED', err?: unknown) => void
 ): () => void {
+  let intentionalClose = false;
   console.log('subscribeToMessages: Setting up subscription for conversation:', conversationId);
   
   const channel = supabase
@@ -330,19 +331,17 @@ export function subscribeToMessages(
         onInsert(msg);
       }
     )
-    .subscribe((status) => {
+    .subscribe((status, err) => {
       console.log('subscribeToMessages: Subscription status:', status);
-      if (status === 'SUBSCRIBED') {
-        onStatus?.('SUBSCRIBED');
-      } else if (status === 'CHANNEL_ERROR') {
-        onStatus?.('ERROR');
-      } else if (status === 'CLOSED') {
-        onStatus?.('CLOSED');
-      }
+      if (status === 'CLOSED' && intentionalClose) return;
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') onStatus?.('ERROR', err);
+      else if (status === 'SUBSCRIBED') onStatus?.('SUBSCRIBED');
+      else if (status === 'CLOSED') onStatus?.('CLOSED');
     });
 
   return () => { 
-    console.log('subscribeToMessages: Removing subscription');
+    intentionalClose = true;
+    console.log('subscribeToMessages: Removing subscription intentionally');
     supabase.removeChannel(channel); 
   };
 }
