@@ -259,11 +259,26 @@ const SocialPage = () => {
           if (msg.client_generated_id) {
             const optimisticIndex = prev.findIndex(m => m.client_generated_id === msg.client_generated_id);
             if (optimisticIndex !== -1) {
-              console.log('setupRealtimeSubscription: Replacing optimistic message');
+              console.log('setupRealtimeSubscription: Replacing optimistic message via client_generated_id');
               const updated = [...prev];
               updated[optimisticIndex] = { ...msg, pending: false };
               return updated;
             }
+          }
+          
+          // Fallback: Check if this might be a message we sent recently that didn't have client_generated_id returned
+          // This can happen if RLS policies don't return the client_generated_id field
+          const optimisticIndex = prev.findIndex(m => 
+            m.pending && 
+            m.content === msg.content && 
+            m.sender_id === msg.sender_id &&
+            Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000 // Within 5 seconds
+          );
+          if (optimisticIndex !== -1) {
+            console.log('setupRealtimeSubscription: Replacing optimistic message via content match');
+            const updated = [...prev];
+            updated[optimisticIndex] = { ...msg, pending: false };
+            return updated;
           }
           
           // Add new message
@@ -329,14 +344,27 @@ const SocialPage = () => {
             );
             
             // Also handle optimistic message replacement
-            const updatedPrev = prev.map(msg => {
-              if (msg.client_generated_id) {
-                const matchingNew = newMessages.find(newMsg => newMsg.client_generated_id === msg.client_generated_id);
+            const updatedPrev = prev.map(prevMsg => {
+              // First, try to match by client_generated_id
+              if (prevMsg.client_generated_id) {
+                const matchingNew = newMessages.find(newMsg => newMsg.client_generated_id === prevMsg.client_generated_id);
                 if (matchingNew) {
                   return { ...matchingNew, pending: false };
                 }
               }
-              return msg;
+              
+              // Fallback: match by content, sender, and timestamp
+              const matchingNew = newMessages.find(newMsg => 
+                prevMsg.pending && 
+                prevMsg.content === newMsg.content && 
+                prevMsg.sender_id === newMsg.sender_id &&
+                Math.abs(new Date(prevMsg.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000 // Within 5 seconds
+              );
+              if (matchingNew) {
+                return { ...matchingNew, pending: false };
+              }
+              
+              return prevMsg;
             });
             
             return [...updatedPrev, ...filteredNewMessages];
