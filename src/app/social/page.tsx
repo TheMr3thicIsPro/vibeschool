@@ -37,8 +37,8 @@ const SocialPage = () => {
   const [realtimeStatus, setRealtimeStatus] = useState<'idle'|'subscribed'|'error'|'closed'>('idle');
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
-  const unsubscribeRef = useRef<null | (() => void)>(null);
-  const pollRef = useRef<any>(null);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
   const currentConversationIdRef = useRef<string | null>(null);
 
   const didRun = useRef(false)
@@ -151,7 +151,101 @@ const SocialPage = () => {
     }
   }, [user?.id]);
 
-  // Stable realtime subscription effect with proper dependencies
+  // Helper function to append messages safely with deduplication
+  const appendMessagesSafely = useCallback((prevMessages: any[], newMessages: any[]) => {
+    // Create a Set of existing message IDs to avoid duplicates
+    const existingIds = new Set(prevMessages.map((msg: any) => msg.id));
+    
+    // Filter out messages that already exist
+    const uniqueNewMessages = newMessages.filter((msg: any) => !existingIds.has(msg.id));
+    
+    if (uniqueNewMessages.length === 0) {
+      return prevMessages; // No new messages to add
+    }
+    
+    // Combine and sort by created_at
+    const combinedMessages = [...prevMessages, ...uniqueNewMessages];
+    return combinedMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, []);
+
+  // Function to fetch latest messages
+  const fetchLatestMessages = useCallback(async (conversationId: string) => {
+    try {
+      let query = supabase
+        .from('messages')
+        .select('id, conversation_id, sender_id, content, created_at, client_generated_id')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true });
+
+      // If we have a last seen timestamp, only get newer messages
+      if (lastCreatedAtRef.current) {
+        query = query.gt('created_at', lastCreatedAtRef.current);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('fetchLatestMessages: Error fetching messages:', error);
+        return [];
+      }
+
+      if (data && data.length > 0) {
+        // Update lastCreatedAtRef to the newest message
+        const newestMessage = data[data.length - 1];
+        lastCreatedAtRef.current = newestMessage.created_at;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('fetchLatestMessages: Error in catch block:', error);
+      return [];
+    }
+  }, []);
+
+  // Polling effect
+  useEffect(() => {
+    if (!activeConversation?.id || !user) {
+      // Clear polling if no active conversation or user
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+
+    // Clear any existing polling interval
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+    }
+
+    // Start polling every 3 seconds
+    pollRef.current = setInterval(async () => {
+      if (!activeConversation?.id) return;
+      
+      try {
+        const newMessages = await fetchLatestMessages(activeConversation.id);
+        
+        if (newMessages.length > 0) {
+          setMessages(prev => {
+            const updatedMessages = appendMessagesSafely(prev, newMessages);
+            return updatedMessages;
+          });
+        }
+      } catch (error) {
+        console.error('Polling error:', error);
+      }
+    }, 3000); // Every 3 seconds
+
+    // Cleanup on unmount or conversation change
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [activeConversation?.id, user?.id, fetchLatestMessages, appendMessagesSafely]);
+
+  // Update the realtime subscription to use the same appendMessagesSafely function
   useEffect(() => {
     const activeConversationId = activeConversation?.id;
     console.log('SocialPage useEffect: Active conversation changed:', activeConversationId, 'User ID:', user?.id);
@@ -168,12 +262,6 @@ const SocialPage = () => {
       unsubscribeRef.current = null;
     }
     
-    // Clean up any existing polling
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    
     console.log('SocialPage: Setting up new subscription for conversation:', activeConversationId);
     
     // Set status to idle initially
@@ -184,58 +272,11 @@ const SocialPage = () => {
       activeConversationId,
       (msg) => {
         console.log('SocialPage: Received message via realtime:', msg);
-        console.log('SocialPage: Message sender ID:', msg.sender_id, 'Current user ID:', user?.id);
-        console.log('SocialPage: Message content:', msg.content);
         
         setMessages(prev => {
-          console.log('SocialPage: Updating messages state with new message, previous count:', prev.length);
-          
-          // Check for duplicates by id
-          if (prev.some(m => m.id === msg.id)) {
-            console.log('SocialPage: Duplicate message by id, skipping');
-            return prev;
-          }
-          
-          // Check for optimistic message replacement
-          if (msg.client_generated_id) {
-            const optimisticIndex = prev.findIndex(m => m.client_generated_id === msg.client_generated_id);
-            if (optimisticIndex !== -1) {
-              console.log('SocialPage: Replacing optimistic message via client_generated_id');
-              const updated = [...prev];
-              updated[optimisticIndex] = { ...msg, pending: false };
-              console.log('SocialPage: Messages state updated, new count:', updated.length);
-              return updated;
-            }
-          }
-          
-          // Fallback: Check if this might be a message we sent recently that didn't have client_generated_id returned
-          // This can happen if RLS policies don't return the client_generated_id field
-          const optimisticIndex = prev.findIndex(m => 
-            m.pending && 
-            m.content === msg.content && 
-            m.sender_id === msg.sender_id &&
-            Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000 // Within 5 seconds
-          );
-          if (optimisticIndex !== -1) {
-            console.log('SocialPage: Replacing optimistic message via content match');
-            const updated = [...prev];
-            updated[optimisticIndex] = { ...msg, pending: false };
-            console.log('SocialPage: Messages state updated, new count:', updated.length);
-            return updated;
-          }
-          
-          // Add new message - sort by created_at to ensure chronological order
-          const newMessages = [...prev, msg];
-          newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          console.log('SocialPage: New message added, new count:', newMessages.length);
-          return newMessages;
+          // Use the same deduplication logic as polling
+          return appendMessagesSafely(prev, [msg]);
         });
-        
-        // Update the ref to track the latest message timestamp
-        if (!lastCreatedAtRef.current || msg.created_at > lastCreatedAtRef.current) {
-          lastCreatedAtRef.current = msg.created_at;
-          console.log('SocialPage: Updated lastCreatedAtRef to:', msg.created_at);
-        }
       },
       (status, err) => {
         console.log('SocialPage: Channel status:', status, 'Error:', err);
@@ -251,26 +292,12 @@ const SocialPage = () => {
           console.log('SocialPage: Realtime subscription closed');
         }
         
-        // Start polling fallback only if realtime errors or times out
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.log('SocialPage: Starting polling fallback due to error');
-          startPollingFallback();
-        }
+        // Even if realtime has issues, polling will continue to work
+        // We don't need to restart polling since it's independent
       }
     );
     
     unsubscribeRef.current = unsubscribe;
-    
-    // Start polling fallback after 2 seconds if still not subscribed
-    setTimeout(() => {
-      setRealtimeStatus(currentStatus => {
-        if (currentStatus === 'idle') {
-          console.log('SocialPage: Starting polling fallback after timeout');
-          startPollingFallback();
-        }
-        return currentStatus;
-      });
-    }, 2000);
 
     // Cleanup function
     return () => {
@@ -279,13 +306,8 @@ const SocialPage = () => {
         unsubscribeRef.current();
         unsubscribeRef.current = null;
       }
-      
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
     };
-  }, [user?.id, activeConversation?.id]); // Only depend on user ID and active conversation ID
+  }, [user?.id, activeConversation?.id, appendMessagesSafely]); // Include appendMessagesSafely in dependencies
 
   const loadConversations = async () => {
     try {
@@ -342,222 +364,68 @@ const SocialPage = () => {
     }
   };
 
-  // Load messages when active conversation changes
-  useEffect(() => {
-    const loadMessages = async () => {
-      if (!activeConversation?.id) {
-        console.log('loadMessages: No active conversation, returning');
-        setMessages([]);
-        return;
+  // Define loadMessages function outside useEffect
+  const loadMessages = async () => {
+    if (!activeConversation?.id) {
+      console.log('loadMessages: No active conversation, returning');
+      setMessages([]);
+      return;
+    }
+    
+    console.log('loadMessages: Loading messages for conversation:', activeConversation.id);
+    try {
+      const messages = await getConversationMessages(activeConversation.id);
+      console.log('loadMessages: Got messages:', messages.length, 'messages');
+      
+      setMessages(messages);
+      
+      // Update the ref to track the latest message timestamp
+      if (messages.length > 0) {
+        const latestMessage = messages[messages.length - 1];
+        lastCreatedAtRef.current = latestMessage.created_at;
+        console.log('loadMessages: Set lastCreatedAtRef to:', latestMessage.created_at);
       }
       
-      console.log('loadMessages: Loading messages for conversation:', activeConversation.id);
-      try {
-        const messages = await getConversationMessages(activeConversation.id);
-        console.log('loadMessages: Got messages:', messages.length, 'messages');
-        
-        setMessages(messages);
-        
-        // Update the ref to track the latest message timestamp
-        if (messages.length > 0) {
-          const latestMessage = messages[messages.length - 1];
-          lastCreatedAtRef.current = latestMessage.created_at;
-          console.log('loadMessages: Set lastCreatedAtRef to:', latestMessage.created_at);
-        }
-        
-        // Load members for the conversation
-        console.log('loadMessages: Loading members for conversation:', activeConversation.id);
-        const membersResponse = await supabase
-          .from('conversation_members')
-          .select(`
-            user_id,
-            role,
-            profiles:user_id (
-              username,
-              email,
-              avatar_url
-            )
-          `)
-          .eq('conversation_id', activeConversation.id);
-        
-        if (membersResponse.error) {
-          console.error('loadMessages: Error loading members:', membersResponse.error);
-        } else {
-          console.log('loadMessages: Got members:', membersResponse.data.length, 'members');
-          setMembers(membersResponse.data);
-        }
-      } catch (error) {
-        console.error('loadMessages: Error loading messages:', error);
+      // Load members for the conversation
+      console.log('loadMessages: Loading members for conversation:', activeConversation.id);
+      const membersResponse = await supabase
+        .from('conversation_members')
+        .select(`
+          user_id,
+          role,
+          profiles:user_id (
+            username,
+            email,
+            avatar_url
+          )
+        `)
+        .eq('conversation_id', activeConversation.id);
+      
+      if (membersResponse.error) {
+        console.error('loadMessages: Error loading members:', membersResponse.error);
+      } else {
+        console.log('loadMessages: Got members:', membersResponse.data.length, 'members');
+        setMembers(membersResponse.data);
       }
-    };
+    } catch (error) {
+      console.error('loadMessages: Error loading messages:', error);
+    }
+  };
 
+  // Load messages when active conversation changes
+  useEffect(() => {
     loadMessages();
   }, [activeConversation?.id]);
 
-  const setupRealtimeSubscription = () => {
-    // Clean up any existing subscription
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-    
-    // Clean up any existing polling
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    
-    if (!activeConversation?.id) return;
-    
-    console.log('setupRealtimeSubscription: Setting up for conversation:', activeConversation.id);
-    
-    // Set status to idle initially
-    setRealtimeStatus('idle');
-    
-    // Subscribe to messages
-    const unsubscribe = subscribeToMessages(
-      activeConversation.id,
-      (msg) => {
-        console.log('setupRealtimeSubscription: Received message via realtime:', msg);
-        setMessages(prev => {
-          // Check for duplicates by id
-          if (prev.some(m => m.id === msg.id)) {
-            console.log('setupRealtimeSubscription: Duplicate message by id, skipping');
-            return prev;
-          }
-          
-          // Check for optimistic message replacement
-          if (msg.client_generated_id) {
-            const optimisticIndex = prev.findIndex(m => m.client_generated_id === msg.client_generated_id);
-            if (optimisticIndex !== -1) {
-              console.log('setupRealtimeSubscription: Replacing optimistic message via client_generated_id');
-              const updated = [...prev];
-              updated[optimisticIndex] = { ...msg, pending: false };
-              return updated;
-            }
-          }
-          
-          // Fallback: Check if this might be a message we sent recently that didn't have client_generated_id returned
-          // This can happen if RLS policies don't return the client_generated_id field
-          const optimisticIndex = prev.findIndex(m => 
-            m.pending && 
-            m.content === msg.content && 
-            m.sender_id === msg.sender_id &&
-            Math.abs(new Date(m.created_at).getTime() - new Date(msg.created_at).getTime()) < 5000 // Within 5 seconds
-          );
-          if (optimisticIndex !== -1) {
-            console.log('setupRealtimeSubscription: Replacing optimistic message via content match');
-            const updated = [...prev];
-            updated[optimisticIndex] = { ...msg, pending: false };
-            return updated;
-          }
-          
-          // Add new message - sort by created_at to ensure chronological order
-          const newMessages = [...prev, msg];
-          newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          return newMessages;
-        });
-        
-        // Update the ref to track the latest message timestamp
-        if (!lastCreatedAtRef.current || msg.created_at > lastCreatedAtRef.current) {
-          lastCreatedAtRef.current = msg.created_at;
-        }
-      },
-      (status, err) => {
-        console.log('setupRealtimeSubscription: Channel status:', status, err);
-        // Map the actual Supabase status to our UI status
-        if (status === 'SUBSCRIBED') {
-          setRealtimeStatus('subscribed');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setRealtimeStatus('error');
-        } else if (status === 'CLOSED') {
-          setRealtimeStatus('closed');
-        }
-        
-        // Start polling fallback only if realtime errors or times out
-        // Don't start polling if the channel was intentionally closed
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          startPollingFallback();
-        }
-      }
-    );
-    
-    unsubscribeRef.current = unsubscribe;
-    
-    // Start polling fallback after 2 seconds if still not subscribed
-    setTimeout(() => {
-      setRealtimeStatus(currentStatus => {
-        if (currentStatus === 'idle') {
-          startPollingFallback();
-        }
-        return currentStatus;
-      });
-    }, 2000);
-  };
 
-  const startPollingFallback = useCallback(() => {
-    console.log('SocialPage: Starting polling fallback, interval ID:', pollRef.current);
-    
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-    }
-    
-    pollRef.current = setInterval(async () => {
-      if (!activeConversation?.id || !user) {
-        console.log('SocialPage: Polling skipped - no active conversation or user');
-        return;
-      }
-      
-      try {
-        console.log('SocialPage: Polling for new messages since:', lastCreatedAtRef.current);
-        const newMessages = await getConversationMessages(
-          activeConversation.id, 
-          { since: lastCreatedAtRef.current ? new Date(lastCreatedAtRef.current).toISOString() : undefined }
-        );
-        
-        console.log('SocialPage: Polling result - received', newMessages.length, 'new messages');
-        
-        if (newMessages.length > 0) {
-          setMessages(prev => {
-            console.log('SocialPage: Processing polling result, previous message count:', prev.length);
-            
-            // Filter out messages we already have
-            const newUniqueMessages = newMessages.filter(
-              (newMsg: any) => !prev.some(existing => existing.id === newMsg.id)
-            );
-            
-            console.log('SocialPage: Unique messages from polling:', newUniqueMessages.length);
-            
-            if (newUniqueMessages.length === 0) {
-              console.log('SocialPage: No new unique messages from polling');
-              return prev;
-            }
-            
-            // Update lastCreatedAtRef with the newest message
-            const latestMessage = newUniqueMessages.reduce((latest: any, current: any) => 
-              new Date(current.created_at) > new Date(latest.created_at) ? current : latest
-            );
-            
-            lastCreatedAtRef.current = latestMessage.created_at;
-            console.log('SocialPage: Updated lastCreatedAtRef to:', latestMessage.created_at);
-            
-            // Combine and sort messages
-            const allMessages = [...prev, ...newUniqueMessages];
-            const sortedMessages = allMessages.sort(
-              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-            );
-            
-            console.log('SocialPage: Final message count after polling:', sortedMessages.length);
-            return sortedMessages;
-          });
-        }
-      } catch (error) {
-        console.error('SocialPage: Error in polling fallback:', error);
-      }
-    }, 2000); // Poll every 2 seconds
-    
-    console.log('SocialPage: Polling interval set with ID:', pollRef.current);
-  }, [activeConversation?.id, user?.id]);
+
+
+
+
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeConversation || !user) {
@@ -643,10 +511,6 @@ const SocialPage = () => {
     } finally {
       setMessageLoading(false);
     }
-  };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
