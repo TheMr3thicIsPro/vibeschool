@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/context/AuthContext';
 import { updateUserProfile, uploadProfilePicture } from '@/services/profileService';
 import { ensureProfile } from '@/lib/ensureProfile';
@@ -10,6 +11,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 
 const ProfilePage = () => {
+  const router = useRouter();
   const { state } = useAuthStore();
   const user = state.user;
   const [profile, setProfile] = useState<any>(null);
@@ -101,6 +103,17 @@ const ProfilePage = () => {
       setError('');
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      // Redirect to home page after logout
+      router.push('/');
+    } catch (err: any) {
+      setError(err.message || 'Failed to logout');
+      console.error('Logout error:', err);
     }
   };
 
@@ -283,6 +296,15 @@ const ProfilePage = () => {
                   {error}
                 </div>
               )}
+              
+              <div className="mt-8 pt-6 border-t border-[#2d2d2d] flex justify-center">
+                <button 
+                  onClick={handleLogout}
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors duration-300"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
           </div>
         </div>
