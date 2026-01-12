@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/context/AuthContext';
 import { 
   getOrCreateGlobalHelpConversation, 
@@ -184,7 +184,12 @@ const SocialPage = () => {
       activeConversationId,
       (msg) => {
         console.log('SocialPage: Received message via realtime:', msg);
+        console.log('SocialPage: Message sender ID:', msg.sender_id, 'Current user ID:', user?.id);
+        console.log('SocialPage: Message content:', msg.content);
+        
         setMessages(prev => {
+          console.log('SocialPage: Updating messages state with new message, previous count:', prev.length);
+          
           // Check for duplicates by id
           if (prev.some(m => m.id === msg.id)) {
             console.log('SocialPage: Duplicate message by id, skipping');
@@ -198,6 +203,7 @@ const SocialPage = () => {
               console.log('SocialPage: Replacing optimistic message via client_generated_id');
               const updated = [...prev];
               updated[optimisticIndex] = { ...msg, pending: false };
+              console.log('SocialPage: Messages state updated, new count:', updated.length);
               return updated;
             }
           }
@@ -214,18 +220,21 @@ const SocialPage = () => {
             console.log('SocialPage: Replacing optimistic message via content match');
             const updated = [...prev];
             updated[optimisticIndex] = { ...msg, pending: false };
+            console.log('SocialPage: Messages state updated, new count:', updated.length);
             return updated;
           }
           
           // Add new message - sort by created_at to ensure chronological order
           const newMessages = [...prev, msg];
           newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+          console.log('SocialPage: New message added, new count:', newMessages.length);
           return newMessages;
         });
         
         // Update the ref to track the latest message timestamp
         if (!lastCreatedAtRef.current || msg.created_at > lastCreatedAtRef.current) {
           lastCreatedAtRef.current = msg.created_at;
+          console.log('SocialPage: Updated lastCreatedAtRef to:', msg.created_at);
         }
       },
       (status, err) => {
@@ -233,10 +242,13 @@ const SocialPage = () => {
         // Map the actual Supabase status to our UI status
         if (status === 'SUBSCRIBED') {
           setRealtimeStatus('subscribed');
+          console.log('SocialPage: Realtime subscription ready');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           setRealtimeStatus('error');
+          console.log('SocialPage: Realtime subscription error, status:', status);
         } else if (status === 'CLOSED') {
           setRealtimeStatus('closed');
+          console.log('SocialPage: Realtime subscription closed');
         }
         
         // Start polling fallback only if realtime errors or times out
@@ -330,41 +342,57 @@ const SocialPage = () => {
     }
   };
 
-  const loadMessages = async () => {
-    if (!activeConversation) {
-      console.log('loadMessages: No active conversation, returning');
-      return;
-    }
-    
-    try {
-      console.log('loadMessages: Loading messages for conversation:', activeConversation.id);
-      const msgs = await getConversationMessages(activeConversation.id);
-      console.log('loadMessages: Got messages:', msgs);
-      
-      // Sort messages by created_at to ensure chronological order
-      const sortedMessages = [...msgs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      setMessages(sortedMessages);
-      
-      // Update the ref to track the latest message timestamp
-      if (sortedMessages.length > 0) {
-        const latestMessage = sortedMessages[sortedMessages.length - 1];
-        lastCreatedAtRef.current = latestMessage.created_at;
-      } else {
-        lastCreatedAtRef.current = null;
+  // Load messages when active conversation changes
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (!activeConversation?.id) {
+        console.log('loadMessages: No active conversation, returning');
+        setMessages([]);
+        return;
       }
       
-      // Setup real-time subscription
-      setupRealtimeSubscription();
-      
-      // Load members for the conversation
-      console.log('loadMessages: Loading members for conversation:', activeConversation.id);
-      const convMembers = await getConversationMembers(activeConversation.id);
-      console.log('loadMessages: Got members:', convMembers);
-      setMembers(convMembers);
-    } catch (err) {
-      console.error('Failed to load messages:', err);
-    }
-  };
+      console.log('loadMessages: Loading messages for conversation:', activeConversation.id);
+      try {
+        const messages = await getConversationMessages(activeConversation.id);
+        console.log('loadMessages: Got messages:', messages.length, 'messages');
+        
+        setMessages(messages);
+        
+        // Update the ref to track the latest message timestamp
+        if (messages.length > 0) {
+          const latestMessage = messages[messages.length - 1];
+          lastCreatedAtRef.current = latestMessage.created_at;
+          console.log('loadMessages: Set lastCreatedAtRef to:', latestMessage.created_at);
+        }
+        
+        // Load members for the conversation
+        console.log('loadMessages: Loading members for conversation:', activeConversation.id);
+        const membersResponse = await supabase
+          .from('conversation_members')
+          .select(`
+            user_id,
+            role,
+            profiles:user_id (
+              username,
+              email,
+              avatar_url
+            )
+          `)
+          .eq('conversation_id', activeConversation.id);
+        
+        if (membersResponse.error) {
+          console.error('loadMessages: Error loading members:', membersResponse.error);
+        } else {
+          console.log('loadMessages: Got members:', membersResponse.data.length, 'members');
+          setMembers(membersResponse.data);
+        }
+      } catch (error) {
+        console.error('loadMessages: Error loading messages:', error);
+      }
+    };
+
+    loadMessages();
+  }, [activeConversation?.id]);
 
   const setupRealtimeSubscription = () => {
     // Clean up any existing subscription
@@ -467,74 +495,69 @@ const SocialPage = () => {
     }, 2000);
   };
 
-  const startPollingFallback = () => {
+  const startPollingFallback = useCallback(() => {
+    console.log('SocialPage: Starting polling fallback, interval ID:', pollRef.current);
+    
     if (pollRef.current) {
       clearInterval(pollRef.current);
     }
     
-    console.log('startPollingFallback: Starting polling fallback');
     pollRef.current = setInterval(async () => {
-      // Skip polling if tab is not visible
-      if (document.visibilityState !== 'visible') {
-        console.log('startPollingFallback: Tab not visible, skipping poll');
+      if (!activeConversation?.id || !user) {
+        console.log('SocialPage: Polling skipped - no active conversation or user');
         return;
       }
       
-      if (!activeConversation?.id) return;
-      
       try {
-        const since = lastCreatedAtRef.current || undefined;
-        console.log('startPollingFallback: Polling for new messages since:', since);
-        const newMessages = await getConversationMessages(activeConversation.id, { since });
+        console.log('SocialPage: Polling for new messages since:', lastCreatedAtRef.current);
+        const newMessages = await getConversationMessages(
+          activeConversation.id, 
+          { since: lastCreatedAtRef.current ? new Date(lastCreatedAtRef.current).toISOString() : undefined }
+        );
+        
+        console.log('SocialPage: Polling result - received', newMessages.length, 'new messages');
         
         if (newMessages.length > 0) {
-          console.log('startPollingFallback: Found new messages via polling:', newMessages);
           setMessages(prev => {
+            console.log('SocialPage: Processing polling result, previous message count:', prev.length);
+            
             // Filter out messages we already have
-            const filteredNewMessages = newMessages.filter(newMsg => 
-              !prev.some(existingMsg => existingMsg.id === newMsg.id)
+            const newUniqueMessages = newMessages.filter(
+              (newMsg: any) => !prev.some(existing => existing.id === newMsg.id)
             );
             
-            // Also handle optimistic message replacement
-            const updatedPrev = prev.map(prevMsg => {
-              // First, try to match by client_generated_id
-              if (prevMsg.client_generated_id) {
-                const matchingNew = newMessages.find(newMsg => newMsg.client_generated_id === prevMsg.client_generated_id);
-                if (matchingNew) {
-                  return { ...matchingNew, pending: false };
-                }
-              }
-              
-              // Fallback: match by content, sender, and timestamp
-              const matchingNew = newMessages.find(newMsg => 
-                prevMsg.pending && 
-                prevMsg.content === newMsg.content && 
-                prevMsg.sender_id === newMsg.sender_id &&
-                Math.abs(new Date(prevMsg.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000 // Within 5 seconds
-              );
-              if (matchingNew) {
-                return { ...matchingNew, pending: false };
-              }
-              
-              return prevMsg;
-            });
+            console.log('SocialPage: Unique messages from polling:', newUniqueMessages.length);
             
-            return [...updatedPrev, ...filteredNewMessages];
-          });
-          
-          // Update the ref to track the latest message timestamp
-          if (newMessages.length > 0) {
-            const latestMessage = newMessages[newMessages.length - 1];
-            if (!lastCreatedAtRef.current || latestMessage.created_at > lastCreatedAtRef.current) {
-              lastCreatedAtRef.current = latestMessage.created_at;
+            if (newUniqueMessages.length === 0) {
+              console.log('SocialPage: No new unique messages from polling');
+              return prev;
             }
-          }
+            
+            // Update lastCreatedAtRef with the newest message
+            const latestMessage = newUniqueMessages.reduce((latest: any, current: any) => 
+              new Date(current.created_at) > new Date(latest.created_at) ? current : latest
+            );
+            
+            lastCreatedAtRef.current = latestMessage.created_at;
+            console.log('SocialPage: Updated lastCreatedAtRef to:', latestMessage.created_at);
+            
+            // Combine and sort messages
+            const allMessages = [...prev, ...newUniqueMessages];
+            const sortedMessages = allMessages.sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+            
+            console.log('SocialPage: Final message count after polling:', sortedMessages.length);
+            return sortedMessages;
+          });
         }
       } catch (error) {
-        console.error('startPollingFallback: Error polling for messages:', error);
+        console.error('SocialPage: Error in polling fallback:', error);
       }
-    }, 3000); // Poll every 3 seconds
-  };
+    }, 2000); // Poll every 2 seconds
+    
+    console.log('SocialPage: Polling interval set with ID:', pollRef.current);
+  }, [activeConversation?.id, user?.id]);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !activeConversation || !user) {
@@ -560,7 +583,12 @@ const SocialPage = () => {
       };
       
       // Immediately add optimistic message to UI
-      setMessages(prev => [...prev, optimisticMessage]);
+      setMessages(prev => {
+        console.log('handleSendMessage: Adding optimistic message to UI, previous count:', prev.length);
+        const newMessages = [...prev, optimisticMessage];
+        console.log('handleSendMessage: Optimistic message added, new count:', newMessages.length);
+        return newMessages;
+      });
       
       // Clear input immediately
       setNewMessage('');
@@ -584,23 +612,30 @@ const SocialPage = () => {
       
       // IMMEDIATELY update the UI to replace the optimistic message with the real one
       // This ensures the UI reflects the actual state regardless of real-time delivery
-      setMessages(prev => 
-        prev.map(msg => {
+      setMessages(prev => {
+        console.log('handleSendMessage: Replacing optimistic message in UI, previous count:', prev.length);
+        const updatedMessages = prev.map(msg => {
           if (msg.client_generated_id === clientGeneratedId) {
+            console.log('handleSendMessage: Found optimistic message to replace with server response');
             return { ...dbMessage, pending: false };
           }
           return msg;
-        })
-      );
+        });
+        console.log('handleSendMessage: Optimistic message replaced, new count:', updatedMessages.length);
+        return updatedMessages;
+      });
     } catch (err) {
       console.error('Failed to send message:', err);
       
       // Remove the optimistic message when sending fails
-      setMessages(prev => 
-        prev.filter(msg => 
+      setMessages(prev => {
+        console.log('handleSendMessage: Removing failed optimistic message, previous count:', prev.length);
+        const filteredMessages = prev.filter(msg => 
           !(msg as any).pending || (msg as any).client_generated_id !== clientGeneratedId
-        )
-      );
+        );
+        console.log('handleSendMessage: Failed optimistic message removed, new count:', filteredMessages.length);
+        return filteredMessages;
+      });
       
       // Show error to user
       setErrorMessage('Message failed to send. Please try again.');
@@ -811,11 +846,15 @@ const SocialPage = () => {
 
               {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((message) => {
+                {messages.map((message, index) => {
                   const isMe = message.sender_id === user?.id;
                   const senderProfile = members.find(member => member.user_id === message.sender_id)?.profiles;
                   const displayName = isMe ? 'You' : senderProfile?.username || 'Member';
                   const displayAvatar = senderProfile?.avatar_url || (senderProfile?.username?.charAt(0).toUpperCase() || 'M');
+                  
+                  // Log message rendering
+                  console.log('SocialPage: Rendering message', index, 'ID:', message.id, 'Content:', message.content, 'Sender:', message.sender_id, 'IsMe:', isMe);
+                  
                   return (
                   <div key={message.id} className="flex gap-3">
                     <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
