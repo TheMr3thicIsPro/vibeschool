@@ -58,6 +58,14 @@ const DashboardPage = () => {
 
   const loadDashboardData = async (profile: any, userId: string) => {
     try {
+      // Debug print to show account role and plan
+      console.log('DEBUG: Account role and plan:', {
+        userId: userId,
+        role: profile?.role,
+        plan: profile?.plan,
+        username: profile?.username
+      });
+      
       // Load announcements
       const announcementsData = await getLatestAnnouncements(10);
       setAnnouncements(announcementsData);

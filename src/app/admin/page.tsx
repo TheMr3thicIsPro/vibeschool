@@ -30,6 +30,14 @@ const AdminPage = () => {
 
       if (error) throw error;
       setProfile(data);
+      
+      // Debug print to show account role and plan
+      console.log('DEBUG: Admin page - Account role and plan:', {
+        userId: user.id,
+        role: data?.role,
+        plan: data?.plan,
+        username: data?.username
+      });
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {

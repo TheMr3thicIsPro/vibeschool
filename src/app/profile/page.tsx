@@ -35,6 +35,18 @@ const ProfilePage = () => {
     }
   }, [user]);
 
+  // Debug effect to show role and plan
+  useEffect(() => {
+    if (profile) {
+      console.log('DEBUG: Profile page - Account role and plan:', {
+        userId: user?.id,
+        role: profile.role,
+        plan: profile.plan,
+        username: profile.username
+      });
+    }
+  }, [profile, user]);
+
   const fetchProfile = async () => {
     try {
       // Check for valid session before trying to ensure profile
