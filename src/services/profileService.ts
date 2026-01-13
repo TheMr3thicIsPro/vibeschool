@@ -155,6 +155,7 @@ export const updateUserProfile = async (
     }
   }
 
+  console.log('updateUserProfile: About to update profile in database with:', profileData);
   const { data, error, status } = await supabase
     .from('profiles')
     .update(profileData)
@@ -162,7 +163,7 @@ export const updateUserProfile = async (
     .select()
     .maybeSingle();
 
-  console.log('updateUserProfile: Update result:', { data, error, status });
+  console.log('updateUserProfile: Raw update result:', { data, error, status });
   if (error) {
     console.error('updateUserProfile: Error updating profile:', error);
     console.error('updateUserProfile: Update error details:', {
@@ -174,6 +175,8 @@ export const updateUserProfile = async (
     });
     throw error;
   }
+  
+  console.log('updateUserProfile: Successfully updated profile, returning:', data);
   return data;
 };
 

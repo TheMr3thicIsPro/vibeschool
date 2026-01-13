@@ -96,8 +96,11 @@ const ProfilePage = () => {
   };
 
   const handleSave = async () => {
+    console.log('handleSave: Starting profile update', { userId: user?.id, editData, currentProfile: profile });
     try {
       const updatedProfile = await updateUserProfile(user?.id!, editData);
+      console.log('handleSave: Profile updated successfully in database', { updatedProfile });
+      
       setProfile(updatedProfile);
       setEditData({
         username: updatedProfile.username || '',
@@ -108,24 +111,33 @@ const ProfilePage = () => {
       setIsEditing(false);
       setError('');
       
+      // Check if username actually changed
+      const usernameChanged = profile?.username !== updatedProfile.username;
+      console.log('handleSave: Username changed?', { old: profile?.username, new: updatedProfile.username, changed: usernameChanged });
+      
       // Broadcast the username change to other tabs and potentially other users
-      if (editData.username && profile?.username !== editData.username) {
-        // Store the old username to broadcast
-        const oldUsername = profile?.username;
-        const newUsername = editData.username;
+      if (usernameChanged && updatedProfile.username) {
+        console.log('handleSave: Broadcasting username change', {
+          userId: user?.id,
+          oldUsername: profile?.username,
+          newUsername: updatedProfile.username
+        });
         
         // Broadcast to other tabs using BroadcastChannel
         const profileChannel = new BroadcastChannel('profile_changes');
         profileChannel.postMessage({
           type: 'USERNAME_CHANGED',
           userId: user?.id,
-          oldUsername,
-          newUsername,
+          oldUsername: profile?.username,
+          newUsername: updatedProfile.username,
           timestamp: Date.now()
         });
         profileChannel.close();
+      } else {
+        console.log('handleSave: No username change to broadcast', { usernameChanged, hasNewUsername: !!updatedProfile.username });
       }
     } catch (err: any) {
+      console.error('handleSave: Error updating profile', err);
       setError(err.message || 'Failed to update profile');
     }
   };

@@ -584,16 +584,29 @@ const SocialPage = () => {
 
   // Handle username changes broadcast from other tabs
   useEffect(() => {
+    console.log('Setting up profile change listener');
     const profileChannel = new BroadcastChannel('profile_changes');
     
     const handleProfileChange = (event: MessageEvent) => {
+      console.log('handleProfileChange: Received message from broadcast channel:', event.data);
       if (event.data.type === 'USERNAME_CHANGED' && event.data.userId) {
-        console.log('Received username change:', event.data);
+        console.log('handleProfileChange: Processing username change:', event.data);
         
         // Update the members state to reflect the new username
         setMembers(prevMembers => {
-          return prevMembers.map(member => {
+          console.log('handleProfileChange: Updating members with new username', {
+            userId: event.data.userId,
+            newUsername: event.data.newUsername,
+            oldMembers: prevMembers
+          });
+          
+          const updatedMembers = prevMembers.map(member => {
             if (member.user_id === event.data.userId) {
+              console.log('handleProfileChange: Found matching member to update', {
+                oldUsername: member.profiles?.username,
+                newUsername: event.data.newUsername
+              });
+              
               return {
                 ...member,
                 profiles: {
@@ -604,11 +617,15 @@ const SocialPage = () => {
             }
             return member;
           });
+          
+          console.log('handleProfileChange: Updated members result', updatedMembers);
+          return updatedMembers;
         });
         
         // Force a re-render to update message display names
         // Since messages display name is calculated based on members, we need to trigger a refresh
         setMessages(prev => [...prev]); // This forces a re-render with new member data
+        console.log('handleProfileChange: Forced message re-render');
       }
     };
     
@@ -616,6 +633,7 @@ const SocialPage = () => {
     
     // Cleanup
     return () => {
+      console.log('Cleaning up profile change listener');
       profileChannel.close();
     };
   }, [members]); // Include members in the dependency array to ensure latest members data
