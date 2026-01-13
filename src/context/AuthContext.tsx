@@ -43,10 +43,7 @@ const initialState: UserState = {
 const AuthContext = createContext<{
   state: UserState;
   dispatch: React.Dispatch<Action>;
-}>({
-  state: initialState,
-  dispatch: () => {},
-});
+}>(undefined as any);
 
 const authReducer = (state: UserState, action: Action): UserState => {
   switch (action.type) {
