@@ -582,6 +582,53 @@ const SocialPage = () => {
     }
   };
 
+  // Handle username changes broadcast from other tabs
+  useEffect(() => {
+    const profileChannel = new BroadcastChannel('profile_changes');
+    
+    const handleProfileChange = (event: MessageEvent) => {
+      if (event.data.type === 'USERNAME_CHANGED' && event.data.userId) {
+        console.log('Received username change:', event.data);
+        
+        // Update the members state to reflect the new username
+        setMembers(prevMembers => {
+          return prevMembers.map(member => {
+            if (member.user_id === event.data.userId) {
+              return {
+                ...member,
+                profiles: {
+                  ...member.profiles,
+                  username: event.data.newUsername
+                }
+              };
+            }
+            return member;
+          });
+        });
+        
+        // Also update messages if any were sent by this user
+        setMessages(prevMessages => {
+          return prevMessages.map(message => {
+            const senderMember = members.find(m => m.user_id === message.sender_id);
+            if (message.sender_id === event.data.userId && senderMember) {
+              // Update the message to reflect the new username context
+              // We don't actually change the message content, but the display will update
+              return message;
+            }
+            return message;
+          });
+        });
+      }
+    };
+    
+    profileChannel.onmessage = handleProfileChange;
+    
+    // Cleanup
+    return () => {
+      profileChannel.close();
+    };
+  }, [members]); // Include members in the dependency array to ensure latest members data
+
   if (loading) {
     return (
       <ProtectedRoute>

@@ -101,6 +101,24 @@ const ProfilePage = () => {
       setProfile(updatedProfile);
       setIsEditing(false);
       setError('');
+      
+      // Broadcast the username change to other tabs and potentially other users
+      if (editData.username && profile?.username !== editData.username) {
+        // Store the old username to broadcast
+        const oldUsername = profile?.username;
+        const newUsername = editData.username;
+        
+        // Broadcast to other tabs using BroadcastChannel
+        const profileChannel = new BroadcastChannel('profile_changes');
+        profileChannel.postMessage({
+          type: 'USERNAME_CHANGED',
+          userId: user?.id,
+          oldUsername,
+          newUsername,
+          timestamp: Date.now()
+        });
+        profileChannel.close();
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to update profile');
     }
