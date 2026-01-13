@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { initAuthListener } from '@/lib/authListener';
+import { ensureProfile } from '@/lib/ensureProfile';
 
 interface UserState {
   user: any | null;
@@ -70,37 +71,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('DEBUG: INITIALIZE_AUTH - Attempting to fetch profile for user:', userId);
           
           try {
-            console.log('AuthProvider: About to fetch profile for user:', userId);
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('id, role, plan, username')
-              .eq('id', userId)
-              .single();
+            console.log('AuthProvider: About to ensure profile for user:', userId);
+            const profile = await ensureProfile(supabase, session.user);
             
-            console.log('AuthProvider: Profile fetch result:', { data: profile, error });
+            console.log('AuthProvider: Profile ensured result:', { profile });
             
-            if (error) {
-              console.error('AuthProvider: Error fetching profile:', error);
-              // Still dispatch the user but without role/plan info
-              dispatch({ type: 'SET_USER', payload: session.user });
-            } else {
-              // Add role and plan to the user object
-              const userWithProfile = {
-                ...session.user,
-                role: profile?.role,
-                plan: profile?.plan,
-                username: profile?.username
-              };
-              
-              console.log('DEBUG: INITIALIZE_AUTH - Account role and plan:', {
-                userId: userId,
-                role: profile?.role,
-                plan: profile?.plan,
-                username: profile?.username
-              });
-              
-              dispatch({ type: 'SET_USER', payload: userWithProfile });
-            }
+            // Add role and plan to the user object
+            const userWithProfile = {
+              ...session.user,
+              role: profile?.role,
+              plan: profile?.plan,
+              username: profile?.username
+            };
+            
+            console.log('DEBUG: INITIALIZE_AUTH - Account role and plan:', {
+              userId: userId,
+              role: profile?.role,
+              plan: profile?.plan,
+              username: profile?.username
+            });
+            
+            dispatch({ type: 'SET_USER', payload: userWithProfile });
           } catch (profileError) {
             console.error('AuthProvider: Error in profile fetch:', profileError);
             // Still dispatch the user but without role/plan info
@@ -137,37 +128,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: INITIAL_SESSION - Attempting to fetch profile for user:', userId);
               
               try {
-                console.log('AuthProvider: About to fetch profile for user:', userId);
-                const { data: profile, error } = await supabase
-                  .from('profiles')
-                  .select('id, role, plan, username')
-                  .eq('id', userId)
-                  .single();
+                console.log('AuthProvider: About to ensure profile for user:', userId);
+                const profile = await ensureProfile(supabase, session.user);
                 
-                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
+                console.log('AuthProvider: Profile ensured result:', { profile });
                 
-                if (error) {
-                  console.error('AuthProvider: Error fetching profile:', error);
-                  // Still dispatch the user but without role/plan info
-                  dispatch({ type: 'SET_USER', payload: session.user });
-                } else {
-                  // Add role and plan to the user object
-                  const userWithProfile = {
-                    ...session.user,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  };
-                  
-                  console.log('DEBUG: INITIAL_SESSION - Account role and plan:', {
-                    userId: userId,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  });
-                  
-                  dispatch({ type: 'SET_USER', payload: userWithProfile });
-                }
+                // Add role and plan to the user object
+                const userWithProfile = {
+                  ...session.user,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                };
+                
+                console.log('DEBUG: INITIAL_SESSION - Account role and plan:', {
+                  userId: userId,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                });
+                
+                dispatch({ type: 'SET_USER', payload: userWithProfile });
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
                 // Still dispatch the user but without role/plan info
@@ -192,37 +173,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: SIGNED_IN - Attempting to fetch profile for user:', userId);
               
               try {
-                console.log('AuthProvider: About to fetch profile for user:', userId);
-                const { data: profile, error } = await supabase
-                  .from('profiles')
-                  .select('id, role, plan, username')
-                  .eq('id', userId)
-                  .single();
+                console.log('AuthProvider: About to ensure profile for user:', userId);
+                const profile = await ensureProfile(supabase, session.user);
                 
-                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
+                console.log('AuthProvider: Profile ensured result:', { profile });
                 
-                if (error) {
-                  console.error('AuthProvider: Error fetching profile:', error);
-                  // Still dispatch the user but without role/plan info
-                  dispatch({ type: 'SET_USER', payload: session.user });
-                } else {
-                  // Add role and plan to the user object
-                  const userWithProfile = {
-                    ...session.user,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  };
-                  
-                  console.log('DEBUG: SIGNED_IN - Account role and plan:', {
-                    userId: userId,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  });
-                  
-                  dispatch({ type: 'SET_USER', payload: userWithProfile });
-                }
+                // Add role and plan to the user object
+                const userWithProfile = {
+                  ...session.user,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                };
+                
+                console.log('DEBUG: SIGNED_IN - Account role and plan:', {
+                  userId: userId,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                });
+                
+                dispatch({ type: 'SET_USER', payload: userWithProfile });
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
                 // Still dispatch the user but without role/plan info
@@ -254,37 +225,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: USER_UPDATED - Attempting to fetch profile for user:', userId);
               
               try {
-                console.log('AuthProvider: About to fetch profile for user:', userId);
-                const { data: profile, error } = await supabase
-                  .from('profiles')
-                  .select('id, role, plan, username')
-                  .eq('id', userId)
-                  .single();
+                console.log('AuthProvider: About to ensure profile for user:', userId);
+                const profile = await ensureProfile(supabase, session.user);
                 
-                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
+                console.log('AuthProvider: Profile ensured result:', { profile });
                 
-                if (error) {
-                  console.error('AuthProvider: Error fetching profile:', error);
-                  // Still dispatch the user but without role/plan info
-                  dispatch({ type: 'SET_USER', payload: session.user });
-                } else {
-                  // Add role and plan to the user object
-                  const userWithProfile = {
-                    ...session.user,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  };
-                  
-                  console.log('DEBUG: USER_UPDATED - Account role and plan:', {
-                    userId: userId,
-                    role: profile?.role,
-                    plan: profile?.plan,
-                    username: profile?.username
-                  });
-                  
-                  dispatch({ type: 'SET_USER', payload: userWithProfile });
-                }
+                // Add role and plan to the user object
+                const userWithProfile = {
+                  ...session.user,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                };
+                
+                console.log('DEBUG: USER_UPDATED - Account role and plan:', {
+                  userId: userId,
+                  role: profile?.role,
+                  plan: profile?.plan,
+                  username: profile?.username
+                });
+                
+                dispatch({ type: 'SET_USER', payload: userWithProfile });
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
                 // Still dispatch the user but without role/plan info
