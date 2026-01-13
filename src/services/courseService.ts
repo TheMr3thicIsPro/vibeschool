@@ -314,6 +314,64 @@ export const getUserProfile = async (userId: string) => {
   return data;
 };
 
+// Get all courses (published and unpublished) - for admin purposes
+export const getAllCourses = async () => {
+  console.log('getAllCourses: Fetching all courses');
+  
+  const { data, error } = await supabase
+    .from('courses')
+    .select(`
+      id,
+      title,
+      description,
+      thumbnail_url,
+      is_published,
+      created_at,
+      updated_at
+    `)
+    .order('created_at', { ascending: false });
+
+  console.log('getAllCourses: Result', { data, error });
+  if (error) {
+    console.error('getAllCourses: Error fetching courses:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get modules by course ID
+export const getModulesByCourse = async (courseId: string) => {
+  console.log('getModulesByCourse: Fetching modules for course:', courseId);
+  
+  const { data, error } = await supabase
+    .from('modules')
+    .select(`
+      id,
+      title,
+      description,
+      order_index,
+      lessons (
+        id,
+        title,
+        description,
+        order_index,
+        is_preview,
+        is_published
+      )
+    `)
+    .eq('course_id', courseId)
+    .order('order_index');
+
+  console.log('getModulesByCourse: Result', { data, error });
+  if (error) {
+    console.error('getModulesByCourse: Error fetching modules:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 // Check if user has access to a lesson
 export const checkLessonAccess = async (userId: string, lessonId: string) => {
   console.log('checkLessonAccess: Checking access for user:', userId, 'lesson:', lessonId);
