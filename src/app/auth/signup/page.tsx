@@ -18,13 +18,24 @@ const SignupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showFallbackForm, setShowFallbackForm] = useState(false);
   
   const router = useRouter();
   const { state } = useAuthStore();
-  const { user, loading } = state;
+  const { user, authLoading, profileLoading } = state;
 
   // Show loading state while auth state is being determined
-  if (loading) {
+  // But also start a 8s watchdog timer to show fallback form
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowFallbackForm(true);
+    }, 8000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // If authLoading is true, show spinner BUT ALSO start a 8s watchdog timer
+  if (authLoading && !showFallbackForm) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="text-2xl font-bold text-accent-primary">Loading...</div>
@@ -32,15 +43,15 @@ const SignupPage = () => {
     );
   }
   
-  // Redirect if user is already logged in
+  // Redirect if user exists AND authLoading is false
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       router.push('/social');
     }
-  }, [user, router]);
+  }, [user, authLoading, router]);
 
   // Don't render anything if user is already logged in
-  if (user) {
+  if (user && !authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="text-2xl font-bold text-accent-primary">Redirecting...</div>

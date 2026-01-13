@@ -10,16 +10,16 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { state } = useAuthStore();
-  const { user, loading } = state;
+  const { user, authLoading } = state;
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth/login');
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-2xl font-bold text-accent-primary">Loading...</div>
