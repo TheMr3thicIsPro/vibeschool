@@ -413,7 +413,7 @@ const SocialPage = () => {
       if (membersResponse.error) {
         console.error('loadMessages: Error loading members:', membersResponse.error);
       } else {
-        console.log('loadMessages: Got members:', membersResponse.data.length, 'members');
+        console.log('loadMessages: Got members:', membersResponse.data.length, 'members', membersResponse.data);
         setMembers(membersResponse.data);
       }
     } catch (error) {
@@ -622,10 +622,24 @@ const SocialPage = () => {
           return updatedMembers;
         });
         
-        // Force a re-render to update message display names
-        // Since messages display name is calculated based on members, we need to trigger a refresh
-        setMessages(prev => [...prev]); // This forces a re-render with new member data
-        console.log('handleProfileChange: Forced message re-render');
+        // Update messages to reflect the new username
+        setMessages(prevMessages => {
+          return prevMessages.map(message => {
+            if (message.sender_id === event.data.userId) {
+              console.log('handleProfileChange: Updating message username', {
+                oldUsername: message.username,
+                newUsername: event.data.newUsername
+              });
+              return {
+                ...message,
+                username: event.data.newUsername
+              };
+            }
+            return message;
+          });
+        });
+        
+        console.log('handleProfileChange: Updated both members and messages');
       }
     };
     
@@ -637,6 +651,72 @@ const SocialPage = () => {
       profileChannel.close();
     };
   }, [members]); // Include members in the dependency array to ensure latest members data
+  
+  // Subscribe to profile updates in real-time
+  useEffect(() => {
+    console.log('Setting up real-time profile updates subscription');
+    
+    const profileUpdatesChannel = supabase
+      .channel('profile-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          console.log('Real-time profile update received:', payload);
+          
+          // Update the members state to reflect the new username
+          setMembers(prevMembers => {
+            return prevMembers.map(member => {
+              if (member.user_id === payload.new.id) {
+                console.log('Updating member profile with new data:', {
+                  oldUsername: member.profiles?.username,
+                  newUsername: payload.new.username
+                });
+                
+                return {
+                  ...member,
+                  profiles: {
+                    ...member.profiles,
+                    username: payload.new.username,
+                    avatar_url: payload.new.avatar_url
+                  }
+                };
+              }
+              return member;
+            });
+          });
+          
+          // Update messages to reflect the new username
+          setMessages(prevMessages => {
+            return prevMessages.map(message => {
+              if (message.sender_id === payload.new.id) {
+                console.log('Updating message username from real-time profile update', {
+                  oldUsername: message.username,
+                  newUsername: payload.new.username
+                });
+                return {
+                  ...message,
+                  username: payload.new.username,
+                  avatar_url: payload.new.avatar_url
+                };
+              }
+              return message;
+            });
+          });
+        }
+      )
+      .subscribe();
+    
+    // Cleanup
+    return () => {
+      console.log('Cleaning up real-time profile updates subscription');
+      supabase.removeChannel(profileUpdatesChannel);
+    };
+  }, []); // Empty dependency array since this subscription should only be set up once
 
   if (loading) {
     return (
@@ -815,8 +895,8 @@ const SocialPage = () => {
                 {messages.map((message, index) => {
                   const isMe = message.sender_id === user?.id;
                   const senderProfile = members.find(member => member.user_id === message.sender_id)?.profiles;
-                  const displayName = isMe ? 'You' : senderProfile?.username || senderProfile?.email?.split('@')[0] || `User ${message.sender_id?.slice(0, 8)}`;
-                  const displayAvatar = senderProfile?.avatar_url || (senderProfile?.username?.charAt(0).toUpperCase() || 'M');
+                  const displayName = isMe ? 'You' : message.username || senderProfile?.username || senderProfile?.email?.split('@')[0] || 'Unknown User';
+                  const displayAvatar = message.avatar_url || senderProfile?.avatar_url || (message.username?.charAt(0).toUpperCase() || senderProfile?.username?.charAt(0).toUpperCase() || 'M');
                   
                   // Log message rendering
                   console.log('SocialPage: Rendering message', index, 'ID:', message.id, 'Content:', message.content, 'Sender:', message.sender_id, 'IsMe:', isMe);

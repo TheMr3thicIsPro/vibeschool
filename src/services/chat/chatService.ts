@@ -101,7 +101,19 @@ export const getConversationMessages = async (conversationId: string, opts?: { s
   console.log('getConversationMessages: Fetching messages for conversation:', conversationId, 'since:', opts?.since);
   let query = supabase
     .from('messages')
-    .select('*')
+    .select(`
+      id,
+      content,
+      created_at,
+      sender_id,
+      conversation_id,
+      client_generated_id,
+      profiles:sender_id (
+        id,
+        username,
+        avatar_url
+      )
+    `)
     .eq('conversation_id', conversationId);
     
   if (opts?.since) {
@@ -112,12 +124,26 @@ export const getConversationMessages = async (conversationId: string, opts?: { s
     .order('created_at', { ascending: true })
     .limit(opts?.limit ?? 50);
 
-  console.log('getConversationMessages: Result', { data, error });
+  console.log('getConversationMessages: Raw result', { data, error });
   if (error) {
     console.error('getConversationMessages: Error fetching messages:', error);
     throw error;
   }
-  return data ?? [];
+  
+  // Normalize messages to include profile data
+  const normalizedMessages = (data as any[])?.map((msg: any) => ({
+    id: msg.id,
+    content: msg.content,
+    created_at: msg.created_at,
+    sender_id: msg.sender_id,
+    conversation_id: msg.conversation_id,
+    client_generated_id: msg.client_generated_id,
+    username: msg.profiles?.username ?? 'Unknown User',
+    avatar_url: msg.profiles?.avatar_url ?? null
+  })) ?? [];
+  
+  console.log('getConversationMessages: Normalized messages', normalizedMessages);
+  return normalizedMessages;
 };
 
 // Send a message
@@ -325,10 +351,40 @@ export function subscribeToMessages(
         table: 'messages', 
         filter: `conversation_id=eq.${conversationId}` 
       },
-      (payload) => {
+      async (payload) => {
         console.log('subscribeToMessages: Received new message via realtime:', payload);
         const msg = payload.new;
-        onInsert(msg);
+        
+        // Fetch the sender's profile data to include username
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', msg.sender_id)
+            .single();
+          
+          if (profileError) {
+            console.error('subscribeToMessages: Error fetching profile for sender:', profileError);
+          }
+          
+          // Append profile data to the message
+          const messageWithProfile = {
+            ...msg,
+            username: profileData?.username ?? 'Unknown User',
+            avatar_url: profileData?.avatar_url ?? null
+          };
+          
+          onInsert(messageWithProfile);
+        } catch (error) {
+          console.error('subscribeToMessages: Error processing profile data:', error);
+          // Fallback to original message if profile fetch fails
+          const messageWithFallback = {
+            ...msg,
+            username: 'Unknown User',
+            avatar_url: null
+          };
+          onInsert(messageWithFallback);
+        }
       }
     )
     .subscribe((status, err) => {
