@@ -217,6 +217,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           case 'SIGNED_OUT':
             console.log('AuthProvider: Handling SIGNED_OUT event');
             dispatch({ type: 'RESET' });
+            dispatch({ type: 'SET_LOADING', payload: false });
             // Reset the handling flag
             handlingAuthEventRef.current = false;
             break;
