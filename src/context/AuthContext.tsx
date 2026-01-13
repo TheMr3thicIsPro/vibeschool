@@ -55,6 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, dispatch] = useReducer(authReducer, initialState);
   const authSubscriptionRef = useRef<any>(null);
   const broadcastListenerRef = useRef<(() => void) | null>(null);
+  const handlingAuthEventRef = useRef(false); // Prevent duplicate auth event handling
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -117,6 +118,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('AuthProvider: Auth state change event:', event, 'User ID:', session?.user?.id);
+      
+      // Prevent duplicate event handling
+      if (handlingAuthEventRef.current) {
+        console.log('AuthProvider: Auth event already being handled, skipping duplicate');
+        return;
+      }
+      
+      handlingAuthEventRef.current = true;
       
       try {
         switch (event) {
@@ -208,6 +217,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           case 'SIGNED_OUT':
             console.log('AuthProvider: Handling SIGNED_OUT event');
             dispatch({ type: 'RESET' });
+            // Reset the handling flag
+            handlingAuthEventRef.current = false;
             break;
             
           case 'TOKEN_REFRESHED':
@@ -260,6 +271,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (error) {
         console.error('AuthProvider: Error in auth state change handler:', error);
         dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
+      } finally {
+        // Always reset the handling flag
+        handlingAuthEventRef.current = false;
       }
     });
 

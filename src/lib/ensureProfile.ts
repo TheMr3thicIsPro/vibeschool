@@ -34,7 +34,12 @@ export async function ensureProfile(
       throw fetchError
     }
 
-    if (existing) return existing
+    if (existing) {
+      console.log('ensureProfile: Found existing profile for user:', user.id);
+      return existing
+    }
+
+    console.log('ensureProfile: No existing profile found, creating for user:', user.id);
 
     // 2 build username fallback safely
     const email = user.email ?? ""
@@ -45,37 +50,27 @@ export async function ensureProfile(
       `user_${user.id.slice(0, 8)}`
 
     // 3 upsert to avoid 409 if called twice
-    const { error: upsertError } = await supabase
+    const { data: created, error: upsertError } = await supabase
       .from("profiles")
       .upsert(
         {
           id: user.id,
           email: email || null,
           username: usernameFallback,
+          role: "student",
+          plan: "free"
         },
         { onConflict: "id" }
       )
+      .select("*")
+      .single()
 
     if (upsertError) {
       logSupabaseError("ensureProfile upsert error", upsertError)
       throw upsertError
     }
 
-    // 4 refetch and return
-    const { data: created, error: refetchError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .maybeSingle()
-
-    if (refetchError) {
-      logSupabaseError("ensureProfile refetch error", refetchError)
-      throw refetchError
-    }
-
-    if (!created) {
-      throw new Error("ensureProfile failed to create profile row")
-    }
+    console.log('ensureProfile: Successfully created profile for user:', user.id);
 
     return created
   })()
