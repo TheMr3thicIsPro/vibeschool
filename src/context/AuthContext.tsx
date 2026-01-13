@@ -40,10 +40,7 @@ const initialState: UserState = {
   profile: null,
 };
 
-const AuthContext = createContext<{
-  state: UserState;
-  dispatch: React.Dispatch<Action>;
-}>(undefined as any);
+const AuthContext = createContext<{ state: UserState; dispatch: React.Dispatch<Action>; } | undefined>(undefined);
 
 const authReducer = (state: UserState, action: Action): UserState => {
   switch (action.type) {
