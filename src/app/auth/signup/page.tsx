@@ -23,14 +23,7 @@ const SignupPage = () => {
   const { state } = useAuthStore();
   const { user, loading } = state;
 
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (user) {
-      router.push('/social');
-    }
-  }, [user, router]);
-
-  // Don't render anything if user is already logged in
+  // Show loading state while auth state is being determined
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -39,8 +32,20 @@ const SignupPage = () => {
     );
   }
   
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      router.push('/social');
+    }
+  }, [user, router]);
+
+  // Don't render anything if user is already logged in
   if (user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-2xl font-bold text-accent-primary">Redirecting...</div>
+      </div>
+    );
   }
 
   const handleSignup = async (e: React.FormEvent) => {
