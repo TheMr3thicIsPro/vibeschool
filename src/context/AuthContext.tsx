@@ -67,6 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           // Fetch user profile to get role and plan
           const userId = session.user.id;
+          console.log('DEBUG: INITIALIZE_AUTH - Attempting to fetch profile for user:', userId);
+          
           try {
             const { data: profile, error } = await supabase
               .from('profiles')
@@ -76,6 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             
             if (error) {
               console.error('AuthProvider: Error fetching profile:', error);
+              // Still dispatch the user but without role/plan info
+              dispatch({ type: 'SET_USER', payload: session.user });
             } else {
               // Add role and plan to the user object
               const userWithProfile = {
@@ -96,6 +100,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (profileError) {
             console.error('AuthProvider: Error in profile fetch:', profileError);
+            // Still dispatch the user but without role/plan info
+            dispatch({ type: 'SET_USER', payload: session.user });
           }
           
           dispatch({ type: 'SET_SESSION', payload: session });
@@ -125,6 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session) {
               // Fetch user profile to get role and plan
               const userId = session.user.id;
+              console.log('DEBUG: INITIAL_SESSION - Attempting to fetch profile for user:', userId);
+              
               try {
                 const { data: profile, error } = await supabase
                   .from('profiles')
@@ -134,6 +142,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
+                  // Still dispatch the user but without role/plan info
+                  dispatch({ type: 'SET_USER', payload: session.user });
                 } else {
                   // Add role and plan to the user object
                   const userWithProfile = {
@@ -154,6 +164,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
+                // Still dispatch the user but without role/plan info
+                dispatch({ type: 'SET_USER', payload: session.user });
               }
               
               dispatch({ type: 'SET_SESSION', payload: session });
@@ -171,6 +183,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               
               // Fetch user profile to get role and plan
               const userId = session.user.id;
+              console.log('DEBUG: SIGNED_IN - Attempting to fetch profile for user:', userId);
+              
               try {
                 const { data: profile, error } = await supabase
                   .from('profiles')
@@ -180,6 +194,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
+                  // Still dispatch the user but without role/plan info
+                  dispatch({ type: 'SET_USER', payload: session.user });
                 } else {
                   // Add role and plan to the user object
                   const userWithProfile = {
@@ -200,6 +216,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
+                // Still dispatch the user but without role/plan info
+                dispatch({ type: 'SET_USER', payload: session.user });
               }
               
               dispatch({ type: 'SET_SESSION', payload: session });
@@ -224,6 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session?.user) {
               // Fetch user profile to get role and plan
               const userId = session.user.id;
+              console.log('DEBUG: USER_UPDATED - Attempting to fetch profile for user:', userId);
+              
               try {
                 const { data: profile, error } = await supabase
                   .from('profiles')
@@ -233,6 +253,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
+                  // Still dispatch the user but without role/plan info
+                  dispatch({ type: 'SET_USER', payload: session.user });
                 } else {
                   // Add role and plan to the user object
                   const userWithProfile = {
@@ -253,6 +275,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               } catch (profileError) {
                 console.error('AuthProvider: Error in profile fetch:', profileError);
+                // Still dispatch the user but without role/plan info
+                dispatch({ type: 'SET_USER', payload: session.user });
               }
             }
             break;
