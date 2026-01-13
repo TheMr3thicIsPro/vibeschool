@@ -13,11 +13,11 @@ interface AppShellProps {
 const AppShell = ({ children }: AppShellProps) => {
   const { state } = useAuthStore();
   const user = state.user;
-  const loading = state.loading;
+  const authLoading = state.authLoading;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Show sidebar only when user is authenticated
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-2xl font-bold text-accent-primary">Loading...</div>
