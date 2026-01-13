@@ -40,7 +40,7 @@ const initialState: UserState = {
   profile: null,
 };
 
-const AuthContext = createContext<{ state: UserState; dispatch: React.Dispatch<Action>; } | undefined>(undefined);
+const AuthContext = createContext<{ state: UserState; dispatch: React.Dispatch<Action>; } | null>(null);
 
 const authReducer = (state: UserState, action: Action): UserState => {
   switch (action.type) {
@@ -275,7 +275,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuthStore = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === null) {
     throw new Error('useAuthStore must be used within an AuthProvider');
   }
   return context;
