@@ -606,18 +606,9 @@ const SocialPage = () => {
           });
         });
         
-        // Also update messages if any were sent by this user
-        setMessages(prevMessages => {
-          return prevMessages.map(message => {
-            const senderMember = members.find(m => m.user_id === message.sender_id);
-            if (message.sender_id === event.data.userId && senderMember) {
-              // Update the message to reflect the new username context
-              // We don't actually change the message content, but the display will update
-              return message;
-            }
-            return message;
-          });
-        });
+        // Force a re-render to update message display names
+        // Since messages display name is calculated based on members, we need to trigger a refresh
+        setMessages(prev => [...prev]); // This forces a re-render with new member data
       }
     };
     

@@ -99,6 +99,12 @@ const ProfilePage = () => {
     try {
       const updatedProfile = await updateUserProfile(user?.id!, editData);
       setProfile(updatedProfile);
+      setEditData({
+        username: updatedProfile.username || '',
+        full_name: updatedProfile.full_name || '',
+        bio: updatedProfile.bio || '',
+        avatar_url: updatedProfile.avatar_url || '',
+      });
       setIsEditing(false);
       setError('');
       
@@ -246,7 +252,7 @@ const ProfilePage = () => {
                 </div>
                 
                 <button
-                  onClick={handleEditToggle}
+                  onClick={isEditing ? handleSave : handleEditToggle}
                   className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00f3ff] to-[#b36cff] text-black font-bold rounded-lg hover:from-[#b36cff] hover:to-[#00f3ff] transition-all duration-300 shadow-lg shadow-[#00f3ff]/30"
                 >
                   {isEditing ? (
@@ -297,17 +303,7 @@ const ProfilePage = () => {
                 </div>
               </div>
               
-              {isEditing && (
-                <div className="mt-8 flex justify-center">
-                  <button
-                    onClick={handleSave}
-                    disabled={uploading}
-                    className="px-8 py-3 bg-gradient-to-r from-[#00f3ff] to-[#b36cff] text-black font-bold rounded-lg hover:from-[#b36cff] hover:to-[#00f3ff] transition-all duration-300 shadow-lg shadow-[#00f3ff]/30 disabled:opacity-50"
-                  >
-                    {uploading ? 'Saving...' : 'Save Changes'}
-                  </button>
-                </div>
-              )}
+
               
               {error && (
                 <div className="mt-6 p-4 bg-red-900/20 border-2 border-red-700 rounded-xl text-red-300 text-center">
