@@ -70,11 +70,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('DEBUG: INITIALIZE_AUTH - Attempting to fetch profile for user:', userId);
           
           try {
+            console.log('AuthProvider: About to fetch profile for user:', userId);
             const { data: profile, error } = await supabase
               .from('profiles')
-              .select('role, plan, username')
+              .select('id, role, plan, username')
               .eq('id', userId)
               .single();
+            
+            console.log('AuthProvider: Profile fetch result:', { data: profile, error });
             
             if (error) {
               console.error('AuthProvider: Error fetching profile:', error);
@@ -134,11 +137,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: INITIAL_SESSION - Attempting to fetch profile for user:', userId);
               
               try {
+                console.log('AuthProvider: About to fetch profile for user:', userId);
                 const { data: profile, error } = await supabase
                   .from('profiles')
-                  .select('role, plan, username')
+                  .select('id, role, plan, username')
                   .eq('id', userId)
                   .single();
+                
+                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
@@ -186,11 +192,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: SIGNED_IN - Attempting to fetch profile for user:', userId);
               
               try {
+                console.log('AuthProvider: About to fetch profile for user:', userId);
                 const { data: profile, error } = await supabase
                   .from('profiles')
-                  .select('role, plan, username')
+                  .select('id, role, plan, username')
                   .eq('id', userId)
                   .single();
+                
+                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
@@ -245,11 +254,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.log('DEBUG: USER_UPDATED - Attempting to fetch profile for user:', userId);
               
               try {
+                console.log('AuthProvider: About to fetch profile for user:', userId);
                 const { data: profile, error } = await supabase
                   .from('profiles')
-                  .select('role, plan, username')
+                  .select('id, role, plan, username')
                   .eq('id', userId)
                   .single();
+                
+                console.log('AuthProvider: Profile fetch result:', { data: profile, error });
                 
                 if (error) {
                   console.error('AuthProvider: Error fetching profile:', error);
