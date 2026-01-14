@@ -5,6 +5,11 @@ import { useAuthStore } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
+import CourseList from '@/components/admin/CourseList';
+import ModuleList from '@/components/admin/ModuleList';
+import LessonList from '@/components/admin/LessonList';
+import LessonEditor from '@/components/admin/LessonEditor';
+import { Lesson } from '@/types/course';
 
 const AdminPage = () => {
   const { state } = useAuthStore();
@@ -12,6 +17,16 @@ const AdminPage = () => {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('courses');
+  
+  // Course management state
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [lessonEditorOpen, setLessonEditorOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  
+  // State for lesson editing
+  const [lessons, setLessons] = useState<Lesson[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -45,6 +60,29 @@ const AdminPage = () => {
     }
   };
 
+  const handleCreateLesson = (moduleId: string) => {
+    setSelectedModuleId(moduleId);
+    setEditingLesson(null);
+    setLessonEditorOpen(true);
+  };
+
+  const handleEditLesson = (lesson: Lesson) => {
+    setEditingLesson(lesson);
+    setLessonEditorOpen(true);
+  };
+
+  const handleLessonSaved = (lesson: Lesson) => {
+    // Update the selected lesson if it was edited
+    if (selectedLessonId === lesson.id) {
+      setSelectedLessonId(lesson.id);
+    }
+  };
+
+  const handleLessonCreated = (lesson: Lesson) => {
+    // Select the newly created lesson
+    setSelectedLessonId(lesson.id);
+  };
+
   if (loading) {
     return (
       <ProtectedRoute>
@@ -76,12 +114,18 @@ const AdminPage = () => {
   return (
     <ProtectedRoute>
       <AppShell>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 h-screen flex flex-col">
           <h1 className="text-3xl font-bold text-white mb-8">Admin Panel</h1>
           
-          <div className="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg w-fit">
+          <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg w-fit">
             <button 
-              onClick={() => setActiveTab('courses')} 
+              onClick={() => {
+                setActiveTab('courses');
+                // Reset selection when switching tabs
+                setSelectedCourseId(null);
+                setSelectedModuleId(null);
+                setSelectedLessonId(null);
+              }}
               className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'courses' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
             >
               Manage Courses
@@ -103,10 +147,71 @@ const AdminPage = () => {
           </div>
           
           {activeTab === 'courses' && (
-            <div className="card p-6 border border-card-border">
-              <h2 className="text-xl font-bold text-white mb-4">Course Management</h2>
-              <p className="text-gray-400">Course management tools coming soon.</p>
-              <p className="text-gray-500 text-sm mt-2">Create, edit, and organize courses, modules, and lessons.</p>
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Course management interface */}
+              <div className="flex-1 flex gap-4">
+                {/* Course List Column */}
+                <div className="w-1/3 flex flex-col">
+                  <CourseList 
+                    selectedCourseId={selectedCourseId}
+                    onSelectCourse={(id) => {
+                      setSelectedCourseId(id);
+                      setSelectedModuleId(null);
+                      setSelectedLessonId(null);
+                    }}
+                    onCourseCreated={() => {}}
+                    onCourseUpdated={() => {
+                      // Refresh modules if current course was updated
+                      if (selectedCourseId) {
+                        setSelectedCourseId(selectedCourseId);
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Module List Column */}
+                <div className="w-1/3 flex flex-col">
+                  <ModuleList 
+                    courseId={selectedCourseId}
+                    selectedModuleId={selectedModuleId}
+                    onSelectModule={(id) => {
+                      setSelectedModuleId(id);
+                      setSelectedLessonId(null);
+                    }}
+                    onModuleCreated={() => {}}
+                    onModuleUpdated={() => {
+                      // Refresh lessons if current module was updated
+                      if (selectedModuleId) {
+                        setSelectedModuleId(selectedModuleId);
+                      }
+                    }}
+                  />
+                </div>
+                
+                {/* Lesson List Column */}
+                <div className="w-1/3 flex flex-col">
+                  <LessonList 
+                    moduleId={selectedModuleId}
+                    selectedLessonId={selectedLessonId}
+                    onSelectLesson={(id) => setSelectedLessonId(id)}
+                    onLessonCreated={() => {}}
+                    onLessonUpdated={() => {}}
+                    onEditLesson={handleEditLesson}
+                  />
+                  
+                  {/* Add Lesson Button */}
+                  {selectedModuleId && (
+                    <div className="p-4 border-t border-gray-700">
+                      <button
+                        onClick={() => handleCreateLesson(selectedModuleId)}
+                        className="w-full bg-accent-primary hover:bg-accent-primary/90 text-black py-2 rounded-md font-medium transition-colors"
+                      >
+                        + Add Lesson
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           
@@ -126,6 +231,20 @@ const AdminPage = () => {
             </div>
           )}
         </div>
+        
+        {/* Lesson Editor Modal */}
+        {lessonEditorOpen && (
+          <LessonEditor
+            lesson={editingLesson}
+            moduleId={selectedModuleId}
+            onSave={handleLessonSaved}
+            onCreate={handleLessonCreated}
+            onClose={() => {
+              setLessonEditorOpen(false);
+              setEditingLesson(null);
+            }}
+          />
+        )}
       </AppShell>
     </ProtectedRoute>
   );
