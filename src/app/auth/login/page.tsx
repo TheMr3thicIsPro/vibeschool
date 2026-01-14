@@ -21,6 +21,13 @@ const LoginPage = () => {
   const { state } = useAuthStore();
   const { user, authLoading, profileLoading } = state;
   
+  // Redirect if user exists AND authLoading is false
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/social');
+    }
+  }, [user, authLoading, router]);
+  
   // Show loading state while auth state is being determined
   // But also start a 8s watchdog timer to show fallback form
   useEffect(() => {
@@ -40,22 +47,6 @@ const LoginPage = () => {
     );
   }
   
-  // Redirect if user exists AND authLoading is false
-  useEffect(() => {
-    if (user && !authLoading) {
-      router.push('/social');
-    }
-  }, [user, authLoading, router]);
-
-  // Don't render anything if user is already logged in
-  if (user && !authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-2xl font-bold text-accent-primary">Redirecting...</div>
-      </div>
-    );
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -76,13 +67,8 @@ const LoginPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Don't render anything if user is already logged in
-  if (user) {
-    return null;
   }
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">

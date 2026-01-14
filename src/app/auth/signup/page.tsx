@@ -24,6 +24,13 @@ const SignupPage = () => {
   const { state } = useAuthStore();
   const { user, authLoading, profileLoading } = state;
 
+  // Redirect if user exists AND authLoading is false
+  useEffect(() => {
+    if (user && !authLoading) {
+      router.push('/social');
+    }
+  }, [user, authLoading, router]);
+  
   // Show loading state while auth state is being determined
   // But also start a 8s watchdog timer to show fallback form
   useEffect(() => {
@@ -43,13 +50,6 @@ const SignupPage = () => {
     );
   }
   
-  // Redirect if user exists AND authLoading is false
-  useEffect(() => {
-    if (user && !authLoading) {
-      router.push('/social');
-    }
-  }, [user, authLoading, router]);
-
   // Don't render anything if user is already logged in
   if (user && !authLoading) {
     return (
@@ -109,13 +109,8 @@ const SignupPage = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Don't render anything if user is already logged in
-  if (user) {
-    return null;
   }
-
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">

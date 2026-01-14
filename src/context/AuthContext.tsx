@@ -68,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authSubscriptionRef = useRef<any>(null);
   const broadcastListenerRef = useRef<(() => void) | null>(null);
   const handlingAuthEventRef = useRef(false); // Prevent duplicate auth event handling
+  const handledEventRef = useRef<{type: string, userId?: string, ts: number} | null>(null); // Moved to top level
 
   // Initialize auth state on mount
   useEffect(() => {
@@ -150,7 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     broadcastListenerRef.current = initAuthListener(dispatch);
 
     // Listen for auth state changes
-    const handledEventRef = useRef<{type: string, userId?: string, ts: number} | null>(null);
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('onAuthStateChange event type:', event, 'User ID:', session?.user?.id);
