@@ -9,6 +9,8 @@ import CourseList from '@/components/admin/CourseList';
 import ModuleList from '@/components/admin/ModuleList';
 import LessonList from '@/components/admin/LessonList';
 import LessonEditor from '@/components/admin/LessonEditor';
+import AnnouncementManager from '@/components/admin/AnnouncementManager';
+import UserManager from '@/components/admin/UserManager';
 import { Lesson } from '@/types/course';
 
 const AdminPage = () => {
@@ -216,18 +218,20 @@ const AdminPage = () => {
           )}
           
           {activeTab === 'announcements' && (
-            <div className="card p-6 border border-card-border">
+            <div className="flex-1 flex flex-col min-h-0">
               <h2 className="text-xl font-bold text-white mb-4">Manage Announcements</h2>
-              <p className="text-gray-400">Create and manage announcements for users.</p>
-              <p className="text-gray-500 text-sm mt-2">Announcements will appear on the dashboard for all users.</p>
+              <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                <AnnouncementManager />
+              </div>
             </div>
           )}
           
           {activeTab === 'users' && profile.role === 'admin' && (
-            <div className="card p-6 border border-card-border">
+            <div className="flex-1 flex flex-col min-h-0">
               <h2 className="text-xl font-bold text-white mb-4">User Management</h2>
-              <p className="text-gray-400">Manage user roles and subscriptions.</p>
-              <p className="text-gray-500 text-sm mt-2">Search users, assign roles, and manage plans.</p>
+              <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
+                <UserManager />
+              </div>
             </div>
           )}
         </div>
