@@ -115,7 +115,7 @@ export async function createCourse(title: string, description: string): Promise<
 
     const { data, error } = await supabase
       .from('courses')
-      .insert([{ title, description }])
+      .insert([{ title, description, is_published: true }])
       .select()
       .single();
 

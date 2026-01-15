@@ -161,7 +161,12 @@ const AdminPage = () => {
                       setSelectedModuleId(null);
                       setSelectedLessonId(null);
                     }}
-                    onCourseCreated={() => {}}
+                    onCourseCreated={() => {
+                      // Refresh the course list when a new course is created
+                      if (selectedCourseId) {
+                        setSelectedCourseId(selectedCourseId);
+                      }
+                    }}
                     onCourseUpdated={() => {
                       // Refresh modules if current course was updated
                       if (selectedCourseId) {
@@ -180,7 +185,12 @@ const AdminPage = () => {
                       setSelectedModuleId(id);
                       setSelectedLessonId(null);
                     }}
-                    onModuleCreated={() => {}}
+                    onModuleCreated={() => {
+                      // Refresh the module list when a new module is created
+                      if (selectedCourseId) {
+                        setSelectedModuleId(selectedModuleId);
+                      }
+                    }}
                     onModuleUpdated={() => {
                       // Refresh lessons if current module was updated
                       if (selectedModuleId) {
