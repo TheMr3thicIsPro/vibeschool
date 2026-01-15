@@ -30,18 +30,24 @@ const CourseList = ({
   }, []);
 
   const loadCourses = async () => {
+    console.log('DEBUG: CourseList - Loading courses');
     setLoading(true);
     setError(null);
     try {
       const result = await listCourses();
+      console.log('DEBUG: CourseList - listCourses result:', result);
       if (result.error) {
+        console.error('DEBUG: CourseList - Error loading courses:', result.error);
         setError(result.error);
       } else if (result.data) {
+        console.log('DEBUG: CourseList - Loaded courses:', result.data);
         setCourses(result.data);
       }
     } catch (err) {
+      console.error('DEBUG: CourseList - Exception loading courses:', err);
       setError('Failed to load courses');
     } finally {
+      console.log('DEBUG: CourseList - Finished loading courses, loading state:', false);
       setLoading(false);
     }
   };
@@ -53,17 +59,23 @@ const CourseList = ({
     }
 
     try {
+      console.log('DEBUG: CourseList - Creating course:', newCourseTitle, newCourseDescription);
       const result = await createCourse(newCourseTitle, newCourseDescription);
+      console.log('DEBUG: CourseList - Create course result:', result);
       if (result.error) {
+        console.error('DEBUG: CourseList - Error creating course:', result.error);
         setError(result.error);
       } else if (result.data) {
+        console.log('DEBUG: CourseList - Course created successfully:', result.data);
         setCourses([...courses, result.data]);
         setNewCourseTitle('');
         setNewCourseDescription('');
         setShowCreateForm(false);
+        console.log('DEBUG: CourseList - Calling onCourseCreated callback');
         onCourseCreated();
       }
     } catch (err) {
+      console.error('DEBUG: CourseList - Exception creating course:', err);
       setError('Failed to create course');
     }
   };

@@ -86,20 +86,28 @@ export async function listCourses(): Promise<{ data: Course[] | null; error: str
     // Check admin access
     const adminCheck = await isAdmin(supabase);
     if (!adminCheck) {
+      console.log('DEBUG: listCourses - Access denied, not admin/teacher');
       return { data: null, error: 'Access denied. Admin or teacher role required.' };
     }
-
+    
+    console.log('DEBUG: listCourses - Fetching all courses for admin');
+    
     const { data, error } = await supabase
       .from('courses')
       .select('*')
       .order('created_at', { ascending: false });
-
+    
+    console.log('DEBUG: listCourses - Query result:', { data: data?.length, error });
+    
     if (error) {
+      console.error('DEBUG: listCourses - Supabase error:', error);
       return { data: null, error: error.message };
     }
 
+    console.log('DEBUG: listCourses - Returning courses:', data?.length);
     return { data, error: null };
   } catch (error: any) {
+    console.error('DEBUG: listCourses - Exception:', error);
     return { data: null, error: error.message };
   }
 }
@@ -111,16 +119,22 @@ export async function createCourse(title: string, description: string): Promise<
     // Check admin access
     const adminCheck = await isAdmin(supabase);
     if (!adminCheck) {
+      console.log('DEBUG: createCourse - Access denied, not admin/teacher');
       return { data: null, error: 'Access denied. Admin or teacher role required.' };
     }
+    
+    console.log('DEBUG: createCourse - Creating course:', { title, description });
 
     const { data, error } = await supabase
       .from('courses')
       .insert([{ title, description }])
       .select()
       .single();
+    
+    console.log('DEBUG: createCourse - Insert result:', { data: !!data, error });
 
     if (error) {
+      console.error('DEBUG: createCourse - Supabase error:', error);
       return { data: null, error: error.message };
     }
 
@@ -128,8 +142,11 @@ export async function createCourse(title: string, description: string): Promise<
     revalidatePath('/courses');
     revalidatePath('/dashboard');
     
+    console.log('DEBUG: createCourse - Course created successfully, cache invalidated');
+    
     return { data, error: null };
   } catch (error: any) {
+    console.error('DEBUG: createCourse - Exception:', error);
     return { data: null, error: error.message };
   }
 }

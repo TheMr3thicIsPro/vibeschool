@@ -119,22 +119,28 @@ const ModuleList = ({
   }, [courseId]);
 
   const loadModules = async () => {
+    console.log('DEBUG: ModuleList - Loading modules for course:', courseId);
     if (!courseId) return;
     
     setLoading(true);
     setError(null);
     try {
       const result = await listModules(courseId);
+      console.log('DEBUG: ModuleList - listModules result:', result);
       if (result.error) {
+        console.error('DEBUG: ModuleList - Error loading modules:', result.error);
         setError(result.error);
       } else if (result.data) {
+        console.log('DEBUG: ModuleList - Loaded modules:', result.data);
         // Sort by order_index
         const sortedModules = [...result.data].sort((a, b) => a.order_index - b.order_index);
         setModules(sortedModules);
       }
     } catch (err) {
+      console.error('DEBUG: ModuleList - Exception loading modules:', err);
       setError('Failed to load modules');
     } finally {
+      console.log('DEBUG: ModuleList - Finished loading modules, loading state:', false);
       setLoading(false);
     }
   };

@@ -154,22 +154,28 @@ const LessonList = ({
   }, [moduleId]);
 
   const loadLessons = async () => {
+    console.log('DEBUG: LessonList - Loading lessons for module:', moduleId);
     if (!moduleId) return;
     
     setLoading(true);
     setError(null);
     try {
       const result = await listLessons(moduleId);
+      console.log('DEBUG: LessonList - listLessons result:', result);
       if (result.error) {
+        console.error('DEBUG: LessonList - Error loading lessons:', result.error);
         setError(result.error);
       } else if (result.data) {
+        console.log('DEBUG: LessonList - Loaded lessons:', result.data);
         // Sort by order_index
         const sortedLessons = [...result.data].sort((a, b) => a.order_index - b.order_index);
         setLessons(sortedLessons);
       }
     } catch (err) {
+      console.error('DEBUG: LessonList - Exception loading lessons:', err);
       setError('Failed to load lessons');
     } finally {
+      console.log('DEBUG: LessonList - Finished loading lessons, loading state:', false);
       setLoading(false);
     }
   };
@@ -180,10 +186,14 @@ const LessonList = ({
     }
 
     try {
+      console.log('DEBUG: LessonList - Deleting lesson:', id);
       const result = await deleteLesson(id);
+      console.log('DEBUG: LessonList - deleteLesson result:', result);
       if (result.error) {
+        console.error('DEBUG: LessonList - Error deleting lesson:', result.error);
         setError(result.error);
       } else {
+        console.log('DEBUG: LessonList - Lesson deleted successfully');
         setLessons(lessons.filter(lesson => lesson.id !== id));
         if (selectedLessonId === id) {
           onSelectLesson(null);
@@ -191,6 +201,7 @@ const LessonList = ({
         onLessonUpdated();
       }
     } catch (err) {
+      console.error('DEBUG: LessonList - Exception deleting lesson:', err);
       setError('Failed to delete lesson');
     }
   };
