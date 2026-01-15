@@ -41,13 +41,18 @@ const CoursesPage = () => {
       // Get published courses
       const coursesData = await listCourses();
       
+      // DEBUG: Log what we're getting from the service
+      console.log('DEBUG: Courses page - Raw courses data:', coursesData);
+      
       // Add progress to each course
       const coursesWithProgress = [];
       for (const course of coursesData) {
+        console.log('DEBUG: Processing course:', course.id, course.title, course.is_published);
         const progress = await getCourseProgress(user.id, course.id);
         coursesWithProgress.push({ ...course, progress });
       }
       
+      console.log('DEBUG: Final courses with progress:', coursesWithProgress);
       setCourses(coursesWithProgress);
     } catch (error) {
       console.error('Error loading courses:', error);
@@ -144,7 +149,13 @@ const CoursesPage = () => {
                     </span>
                   </div>
                   
-                  <button className="w-full py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors font-medium">
+                  <button 
+                    className="w-full py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCourseClick(course.id);
+                    }}
+                  >
                     View Course
                   </button>
                   

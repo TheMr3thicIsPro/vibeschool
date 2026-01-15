@@ -82,6 +82,9 @@ const DashboardPage = () => {
       // Get continue learning items using the new service
       const continueItems = await getContinueLearningItems(userId, 3);
       
+      // DEBUG: Log continue learning items
+      console.log('DEBUG: Dashboard - Continue learning items:', continueItems);
+      
       // Debug: Log the number of published courses available
       const { data: allPublishedCourses, error: publishedCoursesError } = await supabase
         .from('courses')
