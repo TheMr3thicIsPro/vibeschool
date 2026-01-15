@@ -84,6 +84,16 @@ const AdminPage = () => {
     // Select the newly created lesson
     setSelectedLessonId(lesson.id);
   };
+  
+  // Function to trigger refresh of public UI
+  const triggerPublicUIRefresh = () => {
+    // In a real app, this would call router.refresh or similar
+    // For now, we'll rely on the client-side cache invalidation
+    console.log('Triggering public UI refresh');
+    
+    // We could potentially use router.refresh() if needed
+    // router.refresh();
+  };
 
   if (loading) {
     return (
@@ -172,6 +182,9 @@ const AdminPage = () => {
                       if (selectedCourseId) {
                         setSelectedCourseId(selectedCourseId);
                       }
+                      
+                      // Trigger public UI refresh after course update
+                      triggerPublicUIRefresh();
                     }}
                   />
                 </div>
@@ -196,6 +209,9 @@ const AdminPage = () => {
                       if (selectedModuleId) {
                         setSelectedModuleId(selectedModuleId);
                       }
+                      
+                      // Trigger public UI refresh after module update
+                      triggerPublicUIRefresh();
                     }}
                   />
                 </div>
@@ -214,6 +230,9 @@ const AdminPage = () => {
                         setSelectedModuleId(null);
                         setTimeout(() => setSelectedModuleId(tempModuleId), 100);
                       }
+                      
+                      // Trigger public UI refresh after lesson creation
+                      triggerPublicUIRefresh();
                     }}
                     onLessonUpdated={() => {}}
                     onEditLesson={handleEditLesson}

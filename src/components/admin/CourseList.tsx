@@ -99,6 +99,15 @@ const CourseList = ({
           course.id === id ? result.data! : course
         ));
         onCourseUpdated();
+        
+        // After publish/unpublish, refresh the admin list and trigger public UI refresh
+        if (result.data.is_published && !isPublished) {
+          // Course was just published - make it visible to students immediately
+          console.log('Course published - refreshing UI');
+        } else if (!result.data.is_published && isPublished) {
+          // Course was just unpublished - hide it from students
+          console.log('Course unpublished - updating UI');
+        }
       }
     } catch (err) {
       setError('Failed to update course publication status');

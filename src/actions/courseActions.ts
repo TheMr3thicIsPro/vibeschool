@@ -115,7 +115,7 @@ export async function createCourse(title: string, description: string): Promise<
 
     const { data, error } = await supabase
       .from('courses')
-      .insert([{ title, description, is_published: true }])
+      .insert([{ title, description }])
       .select()
       .single();
 
@@ -202,6 +202,11 @@ export async function publishCourse(id: string, isPublished: boolean): Promise<{
       return { data: null, error: error.message };
     }
 
+    // In a real app, we would invalidate the cache here
+    // For example, using revalidateTag or revalidatePath
+    // revalidatePath('/courses');
+    // revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };

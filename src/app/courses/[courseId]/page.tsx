@@ -76,6 +76,13 @@ const CourseDetailPage = () => {
       
       // Get course details
       const courseData = await getCourse(courseId, user.id);
+      
+      // Check if course exists and is published
+      if (!courseData || !courseData.is_published) {
+        console.error('Course not found or not published');
+        return;
+      }
+      
       setCourse(courseData as CourseDetail);
       
       // Get resume and next lessons
@@ -89,6 +96,8 @@ const CourseDetailPage = () => {
       
     } catch (error) {
       console.error('Error loading course data:', error);
+      // Surface the error instead of hiding it
+      console.error('Detailed error:', error);
     } finally {
       setLoading(false);
     }

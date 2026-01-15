@@ -101,6 +101,11 @@ const CoursesPage = () => {
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold text-white mb-8">Courses</h1>
           
+          {/* Debug helper */}
+          <div className="mb-4 p-3 bg-gray-800 rounded-lg text-sm text-gray-300">
+            <p>Debug: Showing {courses.length} published courses (is_published = true)</p>
+          </div>
+          
           {courses.length === 0 ? (
             <div className="text-center py-12">
               <BookOpen size={48} className="text-gray-600 mx-auto mb-4" />

@@ -103,6 +103,8 @@ export const listCourses = async (): Promise<Course[]> => {
   console.log('listCourses: Result', { data, error });
   if (error) {
     console.error('listCourses: Error fetching courses:', error);
+    // Surface the error instead of hiding it
+    console.error('listCourses: Detailed error info:', { message: error.message, details: error.details, hint: error.hint });
     throw error;
   }
 

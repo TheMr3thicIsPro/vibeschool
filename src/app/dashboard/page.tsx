@@ -82,6 +82,13 @@ const DashboardPage = () => {
       // Get continue learning items using the new service
       const continueItems = await getContinueLearningItems(userId, 3);
       
+      // Debug: Log the number of published courses available
+      const { data: allPublishedCourses, error: publishedCoursesError } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('is_published', true);
+      console.log('DEBUG: Total published courses available:', allPublishedCourses?.length || 0);
+      
       // Calculate overall progress
       let totalLessons = 0;
       let completedLessons = 0;
