@@ -8,7 +8,7 @@ import { Play, Pause, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import { getLessonById, checkLessonAccess } from '@/services/courseService';
-import { updateUserLessonProgress, markLessonCompleted } from '@/services/courseNavigationService';
+import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress } from '@/services/courseNavigationService';
 
 const LessonPlayer = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
