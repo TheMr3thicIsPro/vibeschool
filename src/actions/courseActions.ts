@@ -1,7 +1,8 @@
-'use server';
+'use server'
 
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { revalidatePath } from 'next/cache';
 import { parseYouTube } from '@/lib/youtubeParser';
 
 // Type definitions
@@ -123,6 +124,10 @@ export async function createCourse(title: string, description: string): Promise<
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -150,6 +155,10 @@ export async function updateCourse(id: string, updates: Partial<Course>): Promis
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -175,6 +184,10 @@ export async function deleteCourse(id: string): Promise<{ error: string | null }
       return { error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { error: null };
   } catch (error: any) {
     return { error: error.message };
@@ -202,10 +215,9 @@ export async function publishCourse(id: string, isPublished: boolean): Promise<{
       return { data: null, error: error.message };
     }
 
-    // In a real app, we would invalidate the cache here
-    // For example, using revalidateTag or revalidatePath
-    // revalidatePath('/courses');
-    // revalidatePath('/dashboard');
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
     
     return { data, error: null };
   } catch (error: any) {
@@ -272,6 +284,10 @@ export async function createModule(courseId: string, title: string): Promise<{ d
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -299,6 +315,10 @@ export async function updateModule(id: string, updates: Partial<Module>): Promis
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -324,6 +344,10 @@ export async function deleteModule(id: string): Promise<{ error: string | null }
       return { error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { error: null };
   } catch (error: any) {
     return { error: error.message };
@@ -359,6 +383,10 @@ export async function reorderModules(courseId: string, moduleIds: string[]): Pro
       }
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { error: null };
   } catch (error: any) {
     return { error: error.message };
@@ -444,6 +472,10 @@ export async function createLesson(
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -484,6 +516,10 @@ export async function updateLesson(
       return { data: null, error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { data, error: null };
   } catch (error: any) {
     return { data: null, error: error.message };
@@ -509,6 +545,10 @@ export async function deleteLesson(id: string): Promise<{ error: string | null }
       return { error: error.message };
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { error: null };
   } catch (error: any) {
     return { error: error.message };
@@ -544,6 +584,10 @@ export async function reorderLessons(moduleId: string, lessonIds: string[]): Pro
       }
     }
 
+    // Revalidate the cache to ensure frontend reflects changes
+    revalidatePath('/courses');
+    revalidatePath('/dashboard');
+    
     return { error: null };
   } catch (error: any) {
     return { error: error.message };
