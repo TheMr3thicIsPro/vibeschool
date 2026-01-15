@@ -1,13 +1,20 @@
 import Link from 'next/link';
+import BlurText from '@/components/ui/BlurText';
 
 export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background font-sans">
       <main className="flex min-h-screen w-full max-w-4xl flex-col items-center justify-center p-8 bg-background text-foreground">
         <div className="text-center max-w-2xl">
-          <h1 className="text-5xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#00f3ff] to-[#b36cff]">
-            Vibe School
-          </h1>
+          <div className="mb-6">
+            <BlurText 
+              text="Vibe School"
+              delay={150}
+              animateBy="words"
+              direction="top"
+              className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00f3ff] to-[#b36cff]"
+            />
+          </div>
           <p className="text-2xl text-gray-300 mb-8">
             Learn to prompt engineer and vibe code using AI
           </p>
