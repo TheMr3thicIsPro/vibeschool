@@ -196,7 +196,15 @@ const AdminPage = () => {
                     moduleId={selectedModuleId}
                     selectedLessonId={selectedLessonId}
                     onSelectLesson={(id) => setSelectedLessonId(id)}
-                    onLessonCreated={() => {}}
+                    onLessonCreated={() => {
+                      // Refresh lessons when a new lesson is created
+                      if (selectedModuleId) {
+                        // Force refresh by temporarily clearing the module selection
+                        const tempModuleId = selectedModuleId;
+                        setSelectedModuleId(null);
+                        setTimeout(() => setSelectedModuleId(tempModuleId), 100);
+                      }
+                    }}
                     onLessonUpdated={() => {}}
                     onEditLesson={handleEditLesson}
                   />
