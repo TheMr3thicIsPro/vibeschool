@@ -133,7 +133,7 @@ const CourseList = ({
           <h3 className="text-lg font-semibold text-white">Courses</h3>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-accent-primary hover:bg-accent-primary/90 text-black px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            className="bg-accent-primary hover:bg-accent-primary/90 text-black px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift"
           >
             <PlusIcon size={16} />
           </button>
@@ -158,7 +158,7 @@ const CourseList = ({
             <div className="flex gap-2">
               <button
                 onClick={handleCreateCourse}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Create
               </button>
@@ -168,7 +168,7 @@ const CourseList = ({
                   setNewCourseTitle('');
                   setNewCourseDescription('');
                 }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Cancel
               </button>
@@ -223,7 +223,7 @@ const CourseList = ({
                         e.stopPropagation();
                         handleTogglePublish(course.id, course.is_published);
                       }}
-                      className={`p-1 rounded ${
+                      className={`p-1 rounded hover-lift ${
                         course.is_published 
                           ? 'text-green-400 hover:bg-green-900/20' 
                           : 'text-gray-400 hover:bg-gray-700'
@@ -237,7 +237,7 @@ const CourseList = ({
                         e.stopPropagation();
                         handleDeleteCourse(course.id);
                       }}
-                      className="p-1 rounded text-red-400 hover:bg-red-900/20"
+                      className="p-1 rounded text-red-400 hover:bg-red-900/20 hover-lift"
                       title="Delete"
                     >
                       <TrashIcon size={14} />

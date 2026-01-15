@@ -43,7 +43,7 @@ const Sidebar = () => {
               key={item.href}
               href={item.href}
               className={cn(
-                'p-2 rounded-lg transition-all duration-200 flex items-center justify-center',
+                'p-2 rounded-lg transition-all duration-200 flex items-center justify-center hover-lift',
                 'text-gray-400 hover:text-accent-primary hover:bg-gray-800',
                 isActive 
                   ? 'text-accent-primary bg-gray-800 active-glow' 

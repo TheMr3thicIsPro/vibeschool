@@ -84,7 +84,7 @@ const AnnouncementManager = () => {
           <h3 className="text-lg font-semibold text-white">Announcements</h3>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-accent-primary hover:bg-accent-primary/90 text-black px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            className="bg-accent-primary hover:bg-accent-primary/90 text-black px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift"
           >
             + New
           </button>
@@ -109,7 +109,7 @@ const AnnouncementManager = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleCreateAnnouncement}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Create
               </button>
@@ -119,7 +119,7 @@ const AnnouncementManager = () => {
                   setNewTitle('');
                   setNewBody('');
                 }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Cancel
               </button>
@@ -153,7 +153,7 @@ const AnnouncementManager = () => {
                   </div>
                   <button
                     onClick={() => handleDeleteAnnouncement(announcement.id)}
-                    className="p-1 rounded text-red-400 hover:bg-red-900/20 ml-2"
+                    className="p-1 rounded text-red-400 hover:bg-red-900/20 ml-2 hover-lift"
                     title="Delete"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

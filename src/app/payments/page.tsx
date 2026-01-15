@@ -175,7 +175,7 @@ const PaymentsPage = () => {
                     <button
                       onClick={() => handleCheckout(plan.id)}
                       disabled={userAccess && plan.id !== 'lifetime'}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors hover-lift ${
                         userAccess && plan.id !== 'lifetime'
                           ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                           : 'bg-accent-primary text-white hover:bg-accent-primary/90'

@@ -216,7 +216,7 @@ const TaskComponent = ({ lessonId }: TaskComponentProps) => {
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="mt-4 flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors disabled:opacity-50"
+                  className="mt-4 flex items-center gap-2 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors disabled:opacity-50 hover-lift"
                 >
                   <Send size={16} />
                   {submitting ? 'Submitting...' : 'Submit Task'}

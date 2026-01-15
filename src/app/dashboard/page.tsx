@@ -234,14 +234,14 @@ const DashboardPage = () => {
           <div className="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg w-fit">
             <button 
               onClick={() => setActiveTab('dashboard')} 
-              className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'dashboard' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
+              className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'dashboard' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
             >
               Dashboard
             </button>
             {isAdminOrTeacher && (
               <button 
                 onClick={() => setActiveTab('admin')} 
-                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'admin' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
+                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'admin' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
               >
                 Admin
               </button>
@@ -256,7 +256,7 @@ const DashboardPage = () => {
                   <h2 className="text-xl font-bold text-white">Continue Learning</h2>
                   <button 
                     onClick={() => router.push('/courses')}
-                    className="text-accent-primary hover:underline"
+                    className="text-accent-primary hover:underline hover-lift"
                   >
                     Browse Courses
                   </button>
@@ -283,7 +283,7 @@ const DashboardPage = () => {
                           </div>
                           <span className="text-sm text-gray-400">{item.progress_percent}%</span>
                           <button 
-                            className="ml-4 px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors"
+                            className="ml-4 px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors hover-lift"
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/learn/${item.lesson_id}`);
@@ -301,7 +301,7 @@ const DashboardPage = () => {
                       <p className="text-gray-500 mb-4">Start a course to begin your learning journey!</p>
                       <button 
                         onClick={() => router.push('/courses')}
-                        className="px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium"
+                        className="px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
                       >
                         Browse Courses
                       </button>

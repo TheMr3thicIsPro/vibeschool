@@ -257,7 +257,7 @@ const LessonPlayer = () => {
               <p className="text-red-400">{error}</p>
               <button 
                 onClick={() => window.history.back()} 
-                className="mt-4 px-4 py-2 bg-red-700 text-white rounded hover:bg-red-600"
+                className="mt-4 px-4 py-2 bg-red-700 text-white rounded hover:bg-red-600 hover-lift"
               >
                 Go Back
               </button>
@@ -279,7 +279,7 @@ const LessonPlayer = () => {
               <p className="text-yellow-400 mt-2">Preview lessons are available for free, but full content requires a membership.</p>
               <button 
                 onClick={() => window.location.href = '/courses'}
-                className="mt-4 px-4 py-2 bg-accent-primary text-black rounded hover:bg-accent-primary/90"
+                className="mt-4 px-4 py-2 bg-accent-primary text-black rounded hover:bg-accent-primary/90 hover-lift"
               >
                 Browse Courses
               </button>
@@ -327,7 +327,7 @@ const LessonPlayer = () => {
               <div className="flex items-center gap-4">
                 <button 
                   onClick={handleRestart}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600"
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 hover-lift"
                 >
                   <RotateCcw size={16} />
                   Restart
@@ -345,7 +345,7 @@ const LessonPlayer = () => {
               <button
                 onClick={handleMarkComplete}
                 disabled={progress.completed}
-                className={`px-4 py-2 rounded ${
+                className={`px-4 py-2 rounded hover-lift ${
                   progress.completed 
                     ? 'bg-green-800 text-green-300' 
                     : 'bg-accent-primary text-black hover:bg-accent-primary/90'

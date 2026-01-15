@@ -124,7 +124,7 @@ const LoginPage = () => {
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-accent-primary"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-accent-primary hover-lift"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -135,7 +135,7 @@ const LoginPage = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-accent-primary text-white font-medium rounded-lg hover:bg-accent-primary/90 transition-colors glow-button disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 px-4 bg-accent-primary text-white font-medium rounded-lg hover:bg-accent-primary/90 transition-colors glow-button disabled:opacity-50 disabled:cursor-not-allowed hover-lift"
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>

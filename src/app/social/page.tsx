@@ -769,7 +769,7 @@ const SocialPage = () => {
                 />
               </div>
               
-              <button className="w-full mt-3 flex items-center justify-center gap-2 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors">
+              <button className="w-full mt-3 flex items-center justify-center gap-2 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors hover-lift">
                 <Plus size={16} />
                 New Conversation
               </button>
@@ -822,7 +822,7 @@ const SocialPage = () => {
                   
                   {/* New DM button */}
                   <button 
-                    className="w-full p-3 rounded-lg cursor-pointer flex items-center gap-3 hover:bg-gray-800"
+                    className="w-full p-3 rounded-lg cursor-pointer flex items-center gap-3 hover:bg-gray-800 hover-lift"
                     onClick={async () => {
                       const username = prompt('Enter username to start a DM with:');
                       if (username && user) {
@@ -951,7 +951,7 @@ const SocialPage = () => {
                   <button
                     onClick={handleSendMessage}
                     disabled={messageLoading || !newMessage.trim()}
-                    className={`self-end px-4 py-2 rounded-lg flex items-center gap-2 ${
+                    className={`self-end px-4 py-2 rounded-lg flex items-center gap-2 hover-lift ${
                       messageLoading || !newMessage.trim()
                         ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
                         : 'bg-accent-primary text-white hover:bg-accent-primary/90'

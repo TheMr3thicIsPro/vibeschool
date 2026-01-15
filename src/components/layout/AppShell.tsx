@@ -36,7 +36,7 @@ const AppShell = ({ children }: AppShellProps) => {
       <div className="md:hidden absolute top-4 left-4 z-50">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg bg-sidebar-bg text-accent-primary hover:glow-button"
+          className="p-2 rounded-lg bg-sidebar-bg text-accent-primary hover:glow-button hover-lift"
         >
           <Menu size={24} />
         </button>

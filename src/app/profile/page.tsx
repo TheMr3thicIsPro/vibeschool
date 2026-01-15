@@ -225,7 +225,7 @@ const ProfilePage = () => {
                   {isEditing && (
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="absolute bottom-2 right-2 bg-[#00f3ff] text-black p-2 rounded-full shadow-lg hover:bg-[#b36cff] transition-all duration-300"
+                      className="absolute bottom-2 right-2 bg-[#00f3ff] text-black p-2 rounded-full shadow-lg hover:bg-[#b36cff] transition-all duration-300 hover-lift"
                       title="Change avatar"
                     >
                       <Camera size={20} />
@@ -277,7 +277,7 @@ const ProfilePage = () => {
                 
                 <button
                   onClick={isEditing ? handleSave : handleEditToggle}
-                  className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00f3ff] to-[#b36cff] text-black font-bold rounded-lg hover:from-[#b36cff] hover:to-[#00f3ff] transition-all duration-300 shadow-lg shadow-[#00f3ff]/30"
+                  className="mt-4 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-[#00f3ff] to-[#b36cff] text-black font-bold rounded-lg hover:from-[#b36cff] hover:to-[#00f3ff] transition-all duration-300 shadow-lg shadow-[#00f3ff]/30 hover-lift"
                 >
                   {isEditing ? (
                     <>
@@ -338,7 +338,7 @@ const ProfilePage = () => {
               <div className="mt-8 pt-6 border-t border-[#2d2d2d] flex justify-center">
                 <button 
                   onClick={handleLogout}
-                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors duration-300"
+                  className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-colors duration-300 hover-lift"
                 >
                   Logout
                 </button>

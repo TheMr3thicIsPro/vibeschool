@@ -25,14 +25,14 @@ const ToastNotification: React.FC<ToastNotificationProps> = ({
           {onReload && (
             <button
               onClick={onReload}
-              className="px-3 py-1 bg-accent-primary text-white text-xs rounded hover:bg-accent-primary/90 transition-colors"
+              className="px-3 py-1 bg-accent-primary text-white text-xs rounded hover:bg-accent-primary/90 transition-colors hover-lift"
             >
               Reload
             </button>
           )}
           <button
             onClick={onClose}
-            className="px-3 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors"
+            className="px-3 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-600 transition-colors hover-lift"
           >
             Close
           </button>

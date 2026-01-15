@@ -83,7 +83,7 @@ const ForgotPasswordPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 px-4 bg-accent-primary text-white font-medium rounded-lg hover:bg-accent-primary/90 transition-colors glow-button disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 px-4 bg-accent-primary text-white font-medium rounded-lg hover:bg-accent-primary/90 transition-colors glow-button disabled:opacity-50 disabled:cursor-not-allowed hover-lift"
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </button>
@@ -91,7 +91,7 @@ const ForgotPasswordPage = () => {
           ) : (
             <button
               onClick={() => router.push('/auth/login')}
-              className="w-full py-3 px-4 bg-gray-700 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors glow-button"
+              className="w-full py-3 px-4 bg-gray-700 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors glow-button hover-lift"
             >
               Back to Login
             </button>

@@ -128,7 +128,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
             </h2>
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white hover-lift"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -266,7 +266,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-800 disabled:opacity-50"
+              className="px-4 py-2 border border-gray-600 rounded-md text-gray-300 hover:bg-gray-800 disabled:opacity-50 hover-lift"
             >
               Cancel
             </button>
@@ -274,7 +274,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
               type="button"
               onClick={handleSave}
               disabled={loading}
-              className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-black rounded-md font-medium disabled:opacity-50"
+              className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-black rounded-md font-medium disabled:opacity-50 hover-lift"
             >
               {loading ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}
             </button>

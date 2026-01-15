@@ -60,7 +60,7 @@ const SortableModuleItem = ({
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300"
+            className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 hover-lift"
             onClick={(e) => e.stopPropagation()}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -79,7 +79,7 @@ const SortableModuleItem = ({
             e.stopPropagation();
             onDelete(module.id);
           }}
-          className="p-1 rounded text-red-400 hover:bg-red-900/20"
+          className="p-1 rounded text-red-400 hover:bg-red-900/20 hover-lift"
           title="Delete"
         >
           <TrashIcon size={14} />
@@ -227,7 +227,7 @@ const ModuleList = ({
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             disabled={!courseId}
-            className={`${
+            className={`hover-lift ${
               courseId 
                 ? 'bg-accent-primary hover:bg-accent-primary/90 text-black' 
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
@@ -249,7 +249,7 @@ const ModuleList = ({
             <div className="flex gap-2">
               <button
                 onClick={handleCreateModule}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Create
               </button>
@@ -258,7 +258,7 @@ const ModuleList = ({
                   setShowCreateForm(false);
                   setNewModuleTitle('');
                 }}
-                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm"
+                className="bg-gray-600 hover:bg-gray-700 text-white px-3 py-1 rounded text-sm hover-lift"
               >
                 Cancel
               </button>

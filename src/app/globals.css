@@ -58,6 +58,51 @@ body {
   box-shadow: var(--active-glow);
 }
 
+/* Enhanced button hover effects */
+.btn {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 243, 255, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 243, 255, 0.2);
+}
+
+.btn-primary {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+  background-color: color-mix(in srgb, var(--accent-primary) 90%, transparent 10%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 243, 255, 0.3);
+}
+
+.btn-secondary {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: color-mix(in srgb, #6b7280 80%, transparent 20%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(107, 112, 128, 0.2);
+}
+
+.btn-accent {
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-accent:hover {
+  background-color: color-mix(in srgb, var(--accent-secondary) 90%, transparent 10%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(179, 108, 255, 0.3);
+}
+
 /* Discord-style sidebar */
 .sidebar {
   background: var(--sidebar-bg);
@@ -69,6 +114,24 @@ body {
   border: 1px solid var(--card-border);
   border-radius: 8px;
   transition: all 0.3s ease;
+}
+
+/* Button hover effects */
+.hover-lift {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.hover-scale {
+  transition: all 0.2s ease-in-out;
+}
+
+.hover-scale:hover {
+  transform: scale(1.03);
 }
 
 /* Vanta.js background effect */

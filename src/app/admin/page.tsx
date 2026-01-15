@@ -160,7 +160,7 @@ const AdminPage = () => {
                 />
                 <button
                   onClick={checkPassword}
-                  className="w-full bg-accent-primary hover:bg-accent-primary/90 text-black py-3 rounded-md font-medium transition-colors"
+                  className="w-full bg-accent-primary hover:bg-accent-primary/90 text-black py-3 rounded-md font-medium transition-colors hover-lift"
                 >
                   Enter Admin Panel
                 </button>
@@ -180,20 +180,20 @@ const AdminPage = () => {
                   setSelectedModuleId(null);
                   setSelectedLessonId(null);
                 }}
-                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'courses' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
+                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'courses' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
               >
                 Manage Courses
               </button>
               <button 
                 onClick={() => setActiveTab('announcements')} 
-                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'announcements' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
+                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'announcements' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
               >
                 Announcements
               </button>
               {profile.role === 'admin' && (
                 <button 
                   onClick={() => setActiveTab('users')} 
-                  className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'users' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'users' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
                 >
                   User Management
                 </button>
@@ -290,7 +290,7 @@ const AdminPage = () => {
                       <div className="p-4 border-t border-gray-700">
                         <button
                           onClick={() => handleCreateLesson(selectedModuleId)}
-                          className="w-full bg-accent-primary hover:bg-accent-primary/90 text-black py-2 rounded-md font-medium transition-colors"
+                          className="w-full bg-accent-primary hover:bg-accent-primary/90 text-black py-2 rounded-md font-medium transition-colors hover-lift"
                         >
                           + Add Lesson
                         </button>

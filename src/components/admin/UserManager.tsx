@@ -156,7 +156,7 @@ const UserManager = () => {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <button 
-                        className="text-red-400 hover:text-red-300 text-sm"
+                        className="text-red-400 hover:text-red-300 text-sm hover-lift"
                         onClick={async () => {
                           if (window.confirm('Are you sure you want to delete this user?')) {
                             const result = await deleteUser(user.id);
