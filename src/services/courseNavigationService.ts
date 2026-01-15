@@ -74,7 +74,12 @@ export const listCourses = async (): Promise<Course[]> => {
 
   if (coursesError) {
     console.error('listCourses: Error fetching courses:', coursesError);
-    console.error('listCourses: Detailed error info:', { message: coursesError.message, details: coursesError.details, hint: coursesError.hint });
+    console.error("Supabase error", {
+      message: coursesError?.message,
+      details: coursesError?.details,
+      hint: coursesError?.hint,
+      code: coursesError?.code,
+    });
     throw coursesError;
   }
 
@@ -94,6 +99,12 @@ export const listCourses = async (): Promise<Course[]> => {
 
   if (modulesError) {
     console.error('listCourses: Error fetching modules:', modulesError);
+    console.error("Supabase error", {
+      message: modulesError?.message,
+      details: modulesError?.details,
+      hint: modulesError?.hint,
+      code: modulesError?.code,
+    });
     throw modulesError;
   }
 
@@ -120,6 +131,12 @@ export const listCourses = async (): Promise<Course[]> => {
 
     if (lessonsError) {
       console.error('listCourses: Error fetching lessons:', lessonsError);
+      console.error("Supabase error", {
+        message: lessonsError?.message,
+        details: lessonsError?.details,
+        hint: lessonsError?.hint,
+        code: lessonsError?.code,
+      });
       throw lessonsError;
     }
 
@@ -165,6 +182,12 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
 
   if (courseError) {
     console.error('getCourse: Error fetching course:', courseError);
+    console.error("Supabase error", {
+      message: courseError?.message,
+      details: courseError?.details,
+      hint: courseError?.hint,
+      code: courseError?.code,
+    });
     throw courseError;
   }
 
@@ -181,6 +204,12 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
 
   if (modulesError) {
     console.error('getCourse: Error fetching modules:', modulesError);
+    console.error("Supabase error", {
+      message: modulesError?.message,
+      details: modulesError?.details,
+      hint: modulesError?.hint,
+      code: modulesError?.code,
+    });
     throw modulesError;
   }
 
@@ -196,6 +225,12 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
 
     if (lessonsError) {
       console.error('getCourse: Error fetching lessons:', lessonsError);
+      console.error("Supabase error", {
+        message: lessonsError?.message,
+        details: lessonsError?.details,
+        hint: lessonsError?.hint,
+        code: lessonsError?.code,
+      });
       throw lessonsError;
     }
 
@@ -245,6 +280,12 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
 
   if (modulesError) {
     console.error('getCourseProgress: Error fetching modules:', modulesError);
+    console.error("Supabase error", {
+      message: modulesError?.message,
+      details: modulesError?.details,
+      hint: modulesError?.hint,
+      code: modulesError?.code,
+    });
     throw modulesError;
   }
 
@@ -258,6 +299,12 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
     
     if (lessonsError) {
       console.error('getCourseProgress: Error fetching lessons:', lessonsError);
+      console.error("Supabase error", {
+        message: lessonsError?.message,
+        details: lessonsError?.details,
+        hint: lessonsError?.hint,
+        code: lessonsError?.code,
+      });
       throw lessonsError;
     }
     
@@ -284,6 +331,12 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
 
   if (progressError) {
     console.error('getCourseProgress: Error fetching progress data:', progressError);
+    console.error("Supabase error", {
+      message: progressError?.message,
+      details: progressError?.details,
+      hint: progressError?.hint,
+      code: progressError?.code,
+    });
     throw progressError;
   }
 
@@ -328,6 +381,12 @@ export const getNextLesson = async (userId: string, courseId: string): Promise<L
 
   if (progressError) {
     console.error('getNextLesson: Error fetching progress:', progressError);
+    console.error("Supabase error", {
+      message: progressError?.message,
+      details: progressError?.details,
+      hint: progressError?.hint,
+      code: progressError?.code,
+    });
     throw progressError;
   }
 
@@ -376,6 +435,12 @@ export const getResumeLesson = async (userId: string, courseId: string): Promise
 
   if (recentError) {
     console.error('getResumeLesson: Error fetching recent progress:', recentError);
+    console.error("Supabase error", {
+      message: recentError?.message,
+      details: recentError?.details,
+      hint: recentError?.hint,
+      code: recentError?.code,
+    });
     throw recentError;
   }
 
@@ -428,6 +493,12 @@ export const updateUserLessonProgress = async (
   console.log('updateUserLessonProgress: Result', { data, error });
   if (error) {
     console.error('updateUserLessonProgress: Error updating progress:', error);
+    console.error("Supabase error", {
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+    });
     throw error;
   }
 
@@ -494,6 +565,12 @@ export const getUserLessonProgress = async (userId: string, lessonId: string): P
   console.log('getUserLessonProgress: Result', { data, error });
   if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
     console.error('getUserLessonProgress: Error fetching progress:', error);
+    console.error("Supabase error", {
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+    });
     throw error;
   }
 
@@ -522,6 +599,12 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
   
   if (lessonError) {
     console.error('checkLessonAccess: Error fetching lesson:', lessonError);
+    console.error("Supabase error", {
+      message: lessonError?.message,
+      details: lessonError?.details,
+      hint: lessonError?.hint,
+      code: lessonError?.code,
+    });
     return { hasAccess: false, isPreview: false };
   }
 
@@ -540,6 +623,12 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
   
   if (profileError) {
     console.error('checkLessonAccess: Error fetching profile:', profileError);
+    console.error("Supabase error", {
+      message: profileError?.message,
+      details: profileError?.details,
+      hint: profileError?.hint,
+      code: profileError?.code,
+    });
     return { hasAccess: false, isPreview: false };
   }
 
