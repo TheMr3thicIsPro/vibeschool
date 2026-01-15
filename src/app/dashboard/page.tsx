@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/context/AuthContext';
 import { ensureProfile } from '@/lib/ensureProfile';
 import { supabase } from '@/lib/supabase';
 import { BookOpen, Calendar, TrendingUp, Award, Users, Settings } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
-import { getPublishedCourses, getUserProfile, getLatestAnnouncements } from '@/services/courseService';
+import { getUserProfile, getLatestAnnouncements } from '@/services/courseService';
+import { getContinueLearningItems, getCourseProgress } from '@/services/courseNavigationService';
 
 const DashboardPage = () => {
   const { state } = useAuthStore();
   const user = state.user;
+  const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState({
@@ -76,121 +79,55 @@ const DashboardPage = () => {
         joined: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'
       }));
       
-      // TODO: Calculate actual progress based on user's lesson completion
-      // For now, setting placeholder values
-      // In a real implementation, this would involve querying user_lesson_progress
+      // Get continue learning items using the new service
+      const continueItems = await getContinueLearningItems(userId, 3);
       
-      // Calculate progress percentage based on all published lessons the user has access to
-      const courses = await getPublishedCourses();
+      // Calculate overall progress
       let totalLessons = 0;
       let completedLessons = 0;
       
-      // This would need to be implemented with a query to user_lesson_progress
-      // For now, we'll use a placeholder calculation
+      // Get all courses to calculate total progress
+      const { data: allCourses, error: coursesError } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('is_published', true);
       
-      // Get user's lesson progress
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_lesson_progress')
-        .select('lesson_id, completed')
-        .eq('user_id', userId);
-        
-      if (progressData) {
-        completedLessons = progressData.filter((p: any) => p.completed).length;
-        
-        // Count total published lessons
-        for (const course of courses) {
-          for (const module of course.modules || []) {
-            totalLessons += (module.lessons || []).length;
-          }
+      if (allCourses) {
+        for (const course of allCourses) {
+          const progress = await getCourseProgress(userId, course.id);
+          totalLessons += progress.total_lessons;
+          completedLessons += progress.completed_lessons;
         }
-        
-        const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-        
+      }
+      
+      const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      
+      setDashboardStats(prev => ({
+        ...prev,
+        progressPercent,
+        lessonsCompleted: completedLessons
+      }));
+      
+      // Transform continue learning items for display
+      const transformedItems = continueItems.map(item => ({
+        course_title: item.course.title,
+        lesson_title: item.next_lesson.title,
+        progress_percent: item.progress_percent,
+        course_id: item.course.id,
+        lesson_id: item.next_lesson.id,
+        is_preview: item.next_lesson.is_preview
+      }));
+      
+      setContinueLearningItems(transformedItems);
+      
+      // Set current module based on first continue item
+      if (transformedItems.length > 0) {
         setDashboardStats(prev => ({
           ...prev,
-          progressPercent,
-          lessonsCompleted: completedLessons
+          currentModule: transformedItems[0].course_title
         }));
       }
       
-      // Get most recently active course/module for "Current Module"
-      const { data: recentProgress, error: recentError } = await supabase
-        .from('user_lesson_progress')
-        .select('lesson_id')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(1);
-        
-      if (recentProgress && recentProgress.length > 0) {
-        const lessonId = recentProgress[0].lesson_id;
-        
-        // Get the lesson and its module separately
-        const { data: lessonData, error: lessonError } = await supabase
-          .from('lessons')
-          .select('modules (title)')
-          .eq('id', lessonId)
-          .single();
-          
-        if (lessonData && lessonData.modules && lessonData.modules[0]) {
-          const moduleTitle = lessonData.modules[0].title || 'Start a course';
-          setDashboardStats(prev => ({
-            ...prev,
-            currentModule: moduleTitle
-          }));
-        }
-      }
-      
-      // Get continue learning items (most recently active lessons)
-      const { data: continueLearningData, error: continueLearningError } = await supabase
-        .from('user_lesson_progress')
-        .select(`
-          lesson_id,
-          last_position_seconds,
-          completed,
-          updated_at
-        `)
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(2);
-        
-      if (continueLearningData) {
-        // Get lesson details separately for each item
-        const detailedItems = [];
-        for (const item of continueLearningData) {
-          const { data: lessonDetail, error: lessonError } = await supabase
-            .from('lessons')
-            .select('id, title, module_id')
-            .eq('id', item.lesson_id)
-            .single();
-            
-          if (lessonDetail) {
-            // Get module details
-            const { data: moduleDetail, error: moduleError } = await supabase
-              .from('modules')
-              .select('id, title, course_id')
-              .eq('id', lessonDetail.module_id)
-              .single();
-              
-            // Get course details
-            const { data: courseDetail, error: courseError } = await supabase
-              .from('courses')
-              .select('id, title')
-              .eq('id', moduleDetail?.course_id)
-              .single();
-              
-            detailedItems.push({
-              ...item,
-              lessons: {
-                id: lessonDetail.id,
-                title: lessonDetail.title,
-                modules: moduleDetail,
-                courses: courseDetail
-              }
-            });
-          }
-        }
-        setContinueLearningItems(detailedItems);
-      }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
@@ -307,30 +244,58 @@ const DashboardPage = () => {
               <div className="card p-6 border border-card-border mb-8">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-xl font-bold text-white">Continue Learning</h2>
-                  <button className="text-accent-primary hover:underline">View All</button>
+                  <button 
+                    onClick={() => router.push('/courses')}
+                    className="text-accent-primary hover:underline"
+                  >
+                    Browse Courses
+                  </button>
                 </div>
                 
                 <div className="space-y-4">
                   {continueLearningItems.length > 0 ? (
                     continueLearningItems.map((item, index) => (
-                      <div key={index} className="flex items-center p-4 bg-card-bg rounded-lg border border-card-border hover:border-accent-primary transition-colors">
+                      <div 
+                        key={index} 
+                        className="flex items-center p-4 bg-card-bg rounded-lg border border-card-border hover:border-accent-primary transition-colors cursor-pointer"
+                        onClick={() => router.push(`/learn/${item.lesson_id}`)}
+                      >
                         <div className="flex-1">
-                          <h3 className="font-medium text-white">{item.lessons?.title || 'Loading...'}</h3>
-                          <p className="text-gray-400 text-sm">{item.lessons?.modules?.title || 'Module'} • {item.lessons?.courses?.title || 'Course'}</p>
+                          <h3 className="font-medium text-white">{item.lesson_title}</h3>
+                          <p className="text-gray-400 text-sm">{item.course_title}</p>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="w-32 bg-gray-700 rounded-full h-2">
-                            <div className="bg-accent-primary h-2 rounded-full" style={{ width: item.completed ? '100%' : `${Math.min(95, Math.floor((item.last_position_seconds || 0) / 100))}%` }}></div>
+                            <div 
+                              className="bg-accent-primary h-2 rounded-full" 
+                              style={{ width: `${item.progress_percent}%` }}
+                            ></div>
                           </div>
-                          <span className="text-sm text-gray-400">{item.completed ? 'Completed' : `${Math.min(95, Math.floor((item.last_position_seconds || 0) / 100))}%`}</span>
-                          <button className="ml-4 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors">
+                          <span className="text-sm text-gray-400">{item.progress_percent}%</span>
+                          <button 
+                            className="ml-4 px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/learn/${item.lesson_id}`);
+                            }}
+                          >
                             Continue
                           </button>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-400 text-center py-4">No ongoing lessons. Start a course to begin learning!</p>
+                    <div className="text-center py-8">
+                      <BookOpen size={48} className="text-gray-600 mx-auto mb-4" />
+                      <p className="text-gray-400 text-lg mb-2">No ongoing lessons</p>
+                      <p className="text-gray-500 mb-4">Start a course to begin your learning journey!</p>
+                      <button 
+                        onClick={() => router.push('/courses')}
+                        className="px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium"
+                      >
+                        Browse Courses
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
