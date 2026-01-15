@@ -10,6 +10,13 @@ import AppShell from '@/components/layout/AppShell';
 import { getLessonById, checkLessonAccess } from '@/services/courseService';
 import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress } from '@/services/courseNavigationService';
 
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 const LessonPlayer = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const { state } = useAuthStore();
@@ -25,9 +32,11 @@ const LessonPlayer = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [canAccess, setCanAccess] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [devLogsShown, setDevLogsShown] = useState(false); // For dev diagnostics
   
   const playerRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (user && lessonId) {
@@ -64,15 +73,118 @@ const LessonPlayer = () => {
     }
   };
 
-  // Initialize YouTube player
+  // Load YouTube API and initialize player when lesson changes
   useEffect(() => {
-    if (lesson && progress.last_position_seconds >= 0 && playerReady && typeof window !== 'undefined' && 'YT' in window) {
-      // Seek to last position if available
-      if (progress.last_position_seconds > 0) {
-        playerRef.current?.seekTo(progress.last_position_seconds, true);
+    if (!lesson || !playerContainerRef.current) return;
+
+    // DEV DIAGNOSTICS: Log lesson video fields once
+    if (!devLogsShown) {
+      console.log('DEV: Selected lesson id:', lesson.id);
+      console.log('DEV: Video fields exist:', {
+        has_video_provider: !!lesson.video_provider,
+        has_youtube_video_id: !!lesson.youtube_video_id,
+        has_video_url: !!lesson.video_url,
+        video_provider: lesson.video_provider,
+        youtube_video_id: lesson.youtube_video_id,
+        video_url: lesson.video_url
+      });
+      setDevLogsShown(true);
+    }
+
+    // Check if YouTube video fields exist
+    const hasVideo =
+      (lesson.video_provider === 'youtube' && lesson.youtube_video_id) ||
+      (lesson.video_url && lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be'));
+
+    if (!hasVideo) {
+      console.warn('DEV: No video configured for this lesson:', lesson);
+      return;
+    }
+
+    // Extract YouTube video ID from URL if needed
+    let videoId = lesson.youtube_video_id;
+    if (!videoId && lesson.video_url) {
+      // Extract video ID from YouTube URL
+      const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\s]{11})/;
+      const urlMatch = lesson.video_url.match(regExp);
+      if (urlMatch) {
+        videoId = urlMatch[1];
       }
     }
-  }, [lesson, progress, playerReady]);
+
+    if (!videoId) {
+      console.error('DEV: Could not extract YouTube video ID from lesson data:', lesson);
+      return;
+    }
+
+    // Load YouTube IFrame API if not already loaded
+    if (!window.YT) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(script);
+      
+      // Set up the onYouTubeIframeAPIReady callback
+      window.onYouTubeIframeAPIReady = () => {
+        initializePlayer(videoId);
+      };
+    } else {
+      // API already loaded, initialize player immediately
+      initializePlayer(videoId);
+    }
+  }, [lesson]);
+
+  const initializePlayer = (videoId: string) => {
+    if (!playerContainerRef.current || !videoId) return;
+
+    // Clean up existing player if any
+    if (playerRef.current) {
+      playerRef.current.destroy();
+    }
+
+    // Create new player
+    playerRef.current = new window.YT.Player(playerContainerRef.current, {
+      videoId: videoId,
+      playerVars: {
+        autoplay: 0,
+        playsinline: 1,
+        start: 0, // We'll seek to saved position after player is ready
+      },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange,
+      },
+    });
+
+    setPlayerReady(true);
+  };
+
+  // Handle player ready event
+  const onPlayerReady = (event: any) => {
+    // Store reference to player
+    playerRef.current = event.target;
+    setPlayerReady(true);
+    
+    // Seek to last position after player is ready and has loaded
+    setTimeout(() => {
+      if (progress.last_position_seconds > 0) {
+        event.target.seekTo(progress.last_position_seconds, true);
+      }
+    }, 1000); // Wait a bit for player to be fully ready
+  };
+
+  // Handle player state change event
+  const onPlayerStateChange = (event: any) => {
+    if (event.data === window.YT.PlayerState.PLAYING) { // PLAYING
+      setIsPlaying(true);
+    } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) { // PAUSED or ENDED
+      setIsPlaying(false);
+      
+      // If video ended, mark as completed
+      if (event.data === window.YT.PlayerState.ENDED && !progress.completed) {
+        handleMarkComplete();
+      }
+    }
+  };
 
   // Handle video progress updates
   useEffect(() => {
@@ -102,29 +214,6 @@ const LessonPlayer = () => {
       }
     };
   }, [isPlaying, user, lessonId]);
-
-  const onPlayerReady = (event: any) => {
-    playerRef.current = event.target;
-    setPlayerReady(true);
-    
-    // Seek to last position after player is ready
-    if (progress.last_position_seconds > 0) {
-      event.target.seekTo(progress.last_position_seconds, true);
-    }
-  };
-
-  const onPlayerStateChange = (event: any) => {
-    if (event.data === 1) { // PLAYING
-      setIsPlaying(true);
-    } else if (event.data === 2 || event.data === 0) { // PAUSED or ENDED
-      setIsPlaying(false);
-      
-      // If video ended, mark as completed
-      if (event.data === 0 && !progress.completed) { // ENDED
-        handleMarkComplete();
-      }
-    }
-  };
 
   const handleMarkComplete = async () => {
     try {
@@ -201,6 +290,11 @@ const LessonPlayer = () => {
     );
   }
 
+  // Check if video is properly configured
+  const hasVideo =
+    (lesson?.video_provider === 'youtube' && lesson?.youtube_video_id) ||
+    (lesson?.video_url && (lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be')));
+
   return (
     <ProtectedRoute>
       <AppShell>
@@ -211,10 +305,23 @@ const LessonPlayer = () => {
           </div>
           
           <div className="bg-black rounded-lg overflow-hidden mb-6">
-            <div 
-              id="youtube-player" 
-              className="w-full aspect-video"
-            />
+            {hasVideo ? (
+              <div 
+                ref={playerContainerRef}
+                id="youtube-player" 
+                className="w-full aspect-video"
+              />
+            ) : (
+              <div className="w-full aspect-video bg-gray-900 flex items-center justify-center text-gray-400">
+                <div className="text-center">
+                  <p>Video not configured</p>
+                  <p className="text-sm mt-2">Lesson ID: {lesson?.id}</p>
+                  <p className="text-xs mt-1">Video provider: {lesson?.video_provider}</p>
+                  <p className="text-xs mt-1">YouTube ID: {lesson?.youtube_video_id}</p>
+                  <p className="text-xs mt-1">Video URL: {lesson?.video_url}</p>
+                </div>
+              </div>
+            )}
             
             <div className="p-4 bg-gray-900 flex justify-between items-center">
               <div className="flex items-center gap-4">
@@ -266,24 +373,5 @@ const LessonPlayer = () => {
     </ProtectedRoute>
   );
 };
-
-// Load YouTube IFrame API
-// Load YouTube IFrame API
-if (typeof window !== 'undefined') {
-  const loadYouTubeAPI = () => {
-    if (!(window as any).YT) {
-      const script = document.createElement('script');
-      script.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(script);
-      
-      // Set up the onYouTubeIframeAPIReady callback
-      (window as any).onYouTubeIframeAPIReady = () => {
-        // This function will be called by the YouTube API when ready
-      };
-    }
-  };
-  
-  loadYouTubeAPI();
-}
 
 export default LessonPlayer;
