@@ -65,50 +65,88 @@ export interface ContinueLearningItem {
 export const listCourses = async (): Promise<Course[]> => {
   console.log('listCourses: Fetching published courses');
   
-  const { data, error } = await supabase
+  // First, get courses
+  const { data: coursesData, error: coursesError } = await supabase
     .from('courses')
-    .select(`
-      id,
-      title,
-      description,
-      thumbnail_url,
-      is_published,
-      created_at,
-      modules (
-        id,
-        course_id,
-        title,
-        order_index,
-        lessons (
-          id,
-          module_id,
-          title,
-          description,
-          order_index,
-          video_provider,
-          video_url,
-          youtube_video_id,
-          is_preview,
-          is_published,
-          created_at,
-          updated_at
-        )
-      )
-    `)
+    .select('id, title, description, thumbnail_url, is_published, created_at')
     .eq('is_published', true)
-    .order('created_at', { ascending: false })
-    .order('order_index', { foreignTable: 'modules' })
-    .order('order_index', { foreignTable: 'modules.lessons' });
+    .order('created_at', { ascending: false });
 
-  console.log('listCourses: Result', { data, error });
-  if (error) {
-    console.error('listCourses: Error fetching courses:', error);
-    // Surface the error instead of hiding it
-    console.error('listCourses: Detailed error info:', { message: error.message, details: error.details, hint: error.hint });
-    throw error;
+  if (coursesError) {
+    console.error('listCourses: Error fetching courses:', coursesError);
+    console.error('listCourses: Detailed error info:', { message: coursesError.message, details: coursesError.details, hint: coursesError.hint });
+    throw coursesError;
   }
 
-  return data || [];
+  // If no courses, return empty array
+  if (!coursesData || coursesData.length === 0) {
+    console.log('listCourses: No courses found');
+    return [];
+  }
+
+  // Get modules for all courses
+  const courseIds = coursesData.map(course => course.id);
+  const { data: modulesData, error: modulesError } = await supabase
+    .from('modules')
+    .select('id, course_id, title, order_index')
+    .in('course_id', courseIds)
+    .order('order_index', { ascending: true });
+
+  if (modulesError) {
+    console.error('listCourses: Error fetching modules:', modulesError);
+    throw modulesError;
+  }
+
+  // Group modules by course
+  const modulesByCourse: Record<string, any[]> = {};
+  if (modulesData) {
+    for (const module of modulesData) {
+      if (!modulesByCourse[module.course_id]) {
+        modulesByCourse[module.course_id] = [];
+      }
+      modulesByCourse[module.course_id].push(module);
+    }
+  }
+
+  // Get lessons for all modules
+  const moduleIds = modulesData?.map(module => module.id) || [];
+  let lessonsData: any[] = [];
+  if (moduleIds.length > 0) {
+    const { data: lessonsRes, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('id, module_id, title, description, order_index, video_provider, video_url, youtube_video_id, is_preview, is_published, created_at, updated_at')
+      .in('module_id', moduleIds)
+      .order('order_index', { ascending: true });
+
+    if (lessonsError) {
+      console.error('listCourses: Error fetching lessons:', lessonsError);
+      throw lessonsError;
+    }
+
+    lessonsData = lessonsRes || [];
+  }
+
+  // Group lessons by module
+  const lessonsByModule: Record<string, any[]> = {};
+  for (const lesson of lessonsData) {
+    if (!lessonsByModule[lesson.module_id]) {
+      lessonsByModule[lesson.module_id] = [];
+    }
+    lessonsByModule[lesson.module_id].push(lesson);
+  }
+
+  // Combine everything
+  const result = coursesData.map(course => ({
+    ...course,
+    modules: modulesByCourse[course.id] ? 
+      modulesByCourse[course.id].map(module => ({
+        ...module,
+        lessons: lessonsByModule[module.id] || []
+      })) : []
+  }));
+
+  console.log('listCourses: Final result', { count: result.length });
+  return result;
 };
 
 /**
@@ -117,53 +155,80 @@ export const listCourses = async (): Promise<Course[]> => {
 export const getCourse = async (courseId: string, userId?: string): Promise<Course & { progress?: CourseProgress }> => {
   console.log('getCourse: Fetching course:', courseId, 'for user:', userId);
   
-  const { data, error } = await supabase
+  // Get the course
+  const { data: courseData, error: courseError } = await supabase
     .from('courses')
-    .select(`
-      id,
-      title,
-      description,
-      thumbnail_url,
-      is_published,
-      created_at,
-      modules (
-        id,
-        course_id,
-        title,
-        order_index,
-        lessons (
-          id,
-          module_id,
-          title,
-          description,
-          order_index,
-          video_provider,
-          video_url,
-          youtube_video_id,
-          is_preview,
-          is_published,
-          created_at,
-          updated_at
-        )
-      )
-    `)
+    .select('id, title, description, thumbnail_url, is_published, created_at')
     .eq('id', courseId)
     .eq('is_published', true)
     .single();
 
-  console.log('getCourse: Result', { data, error });
-  if (error) {
-    console.error('getCourse: Error fetching course:', error);
-    throw error;
+  if (courseError) {
+    console.error('getCourse: Error fetching course:', courseError);
+    throw courseError;
   }
+
+  if (!courseData) {
+    throw new Error('Course not found');
+  }
+
+  // Get modules for this course
+  const { data: modulesData, error: modulesError } = await supabase
+    .from('modules')
+    .select('id, course_id, title, order_index')
+    .eq('course_id', courseId)
+    .order('order_index', { ascending: true });
+
+  if (modulesError) {
+    console.error('getCourse: Error fetching modules:', modulesError);
+    throw modulesError;
+  }
+
+  // Get lessons for all modules in this course
+  const moduleIds = modulesData?.map(module => module.id) || [];
+  let lessonsData: any[] = [];
+  if (moduleIds.length > 0) {
+    const { data: lessonsRes, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('id, module_id, title, description, order_index, video_provider, video_url, youtube_video_id, is_preview, is_published, created_at, updated_at')
+      .in('module_id', moduleIds)
+      .order('order_index', { ascending: true });
+
+    if (lessonsError) {
+      console.error('getCourse: Error fetching lessons:', lessonsError);
+      throw lessonsError;
+    }
+
+    lessonsData = lessonsRes || [];
+  }
+
+  // Group lessons by module
+  const lessonsByModule: Record<string, any[]> = {};
+  for (const lesson of lessonsData) {
+    if (!lessonsByModule[lesson.module_id]) {
+      lessonsByModule[lesson.module_id] = [];
+    }
+    lessonsByModule[lesson.module_id].push(lesson);
+  }
+
+  // Combine everything
+  const result = {
+    ...courseData,
+    modules: modulesData?.map(module => ({
+      ...module,
+      lessons: lessonsByModule[module.id] || []
+    })) || []
+  };
+
+  console.log('getCourse: Result', { course: result.id, modules: result.modules.length });
 
   // Add progress if user is logged in
-  if (userId && data) {
+  if (userId) {
     const progress = await getCourseProgress(userId, courseId);
-    return { ...data, progress };
+    return { ...result, progress };
   }
 
-  return data;
+  return result;
 };
 
 /**
@@ -172,24 +237,33 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
 export const getCourseProgress = async (userId: string, courseId: string): Promise<CourseProgress> => {
   console.log('getCourseProgress: Fetching progress for user:', userId, 'course:', courseId);
   
-  // Get all lessons for this course
-  const { data: lessonsData, error: lessonsError } = await supabase
-    .from('lessons')
-    .select(`
-      id,
-      module_id,
-      modules (
-        course_id
-      )
-    `)
-    .eq('modules.course_id', courseId);
+  // Get all lessons for this course by first getting modules then lessons
+  const { data: modulesData, error: modulesError } = await supabase
+    .from('modules')
+    .select('id')
+    .eq('course_id', courseId);
 
-  if (lessonsError) {
-    console.error('getCourseProgress: Error fetching lessons:', lessonsError);
-    throw lessonsError;
+  if (modulesError) {
+    console.error('getCourseProgress: Error fetching modules:', modulesError);
+    throw modulesError;
   }
 
-  const lessonIds = lessonsData?.map(lesson => lesson.id) || [];
+  let lessonIds: string[] = [];
+  if (modulesData && modulesData.length > 0) {
+    const moduleIds = modulesData.map(module => module.id);
+    const { data: lessonsData, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('id')
+      .in('module_id', moduleIds);
+    
+    if (lessonsError) {
+      console.error('getCourseProgress: Error fetching lessons:', lessonsError);
+      throw lessonsError;
+    }
+    
+    lessonIds = lessonsData?.map(lesson => lesson.id) || [];
+  }
+  
   const totalLessons = lessonIds.length;
 
   if (totalLessons === 0) {
@@ -260,9 +334,9 @@ export const getNextLesson = async (userId: string, courseId: string): Promise<L
   const completedLessonIds = new Set(progressData?.map(p => p.lesson_id) || []);
 
   // Find first incomplete lesson in order
-  for (const module of course.modules.sort((a, b) => a.order_index - b.order_index)) {
+  for (const module of course.modules) {
     if (module.lessons) {
-      for (const lesson of module.lessons.sort((a, b) => a.order_index - b.order_index)) {
+      for (const lesson of module.lessons) {
         if (!completedLessonIds.has(lesson.id)) {
           console.log('getNextLesson: Found next lesson:', lesson.id);
           return lesson;
@@ -273,9 +347,9 @@ export const getNextLesson = async (userId: string, courseId: string): Promise<L
 
   // If all lessons are completed, return the first lesson
   console.log('getNextLesson: All lessons completed, returning first lesson');
-  const firstModule = course.modules.sort((a, b) => a.order_index - b.order_index)[0];
+  const firstModule = course.modules[0];
   if (firstModule && firstModule.lessons && firstModule.lessons.length > 0) {
-    return firstModule.lessons.sort((a, b) => a.order_index - b.order_index)[0];
+    return firstModule.lessons[0];
   }
 
   return null;
