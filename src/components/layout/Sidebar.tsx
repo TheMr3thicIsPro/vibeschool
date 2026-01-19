@@ -15,9 +15,9 @@ const Sidebar = () => {
       label: 'Home' 
     },
     { 
-      href: '/learn', 
+      href: '/courses', 
       icon: BookOpen, 
-      label: 'Learn' 
+      label: 'Courses' 
     },
     { 
       href: '/social', 
