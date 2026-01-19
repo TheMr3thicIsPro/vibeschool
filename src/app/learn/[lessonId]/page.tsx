@@ -9,6 +9,8 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import { getLessonById, checkLessonAccess } from '@/services/courseService';
 import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress } from '@/services/courseNavigationService';
+import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizService';
+import { QuizComponent } from '@/components/quiz/QuizComponent';
 
 declare global {
   interface Window {
@@ -33,6 +35,10 @@ const LessonPlayer = () => {
   const [canAccess, setCanAccess] = useState(false);
   const [isCheckingAccess, setIsCheckingAccess] = useState(true);
   const [devLogsShown, setDevLogsShown] = useState(false); // For dev diagnostics
+  const [quiz, setQuiz] = useState<any>(null);
+  const [quizLoading, setQuizLoading] = useState(true);
+  const [quizSubmission, setQuizSubmission] = useState<any>(null);
+  const [quizPassed, setQuizPassed] = useState(false);
   
   const playerRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -65,9 +71,33 @@ const LessonPlayer = () => {
       // Get user progress
       const progressData = await getUserLessonProgress(user!.id, lessonId);
       setProgress(progressData);
+      
+      // Get quiz for this lesson
+      try {
+        const lessonQuiz = await getQuizByLessonId(lessonId);
+        setQuiz(lessonQuiz);
+        
+        // Check if user has passed the quiz
+        if (lessonQuiz) {
+          const submission = await getQuizSubmissionByLessonId(user!.id, lessonId);
+          if (submission) {
+            setQuizSubmission(submission);
+            // Check if the submission meets passing criteria (you can adjust this)
+            if (submission.percentage >= 70) { // Assuming 70% is the passing grade
+              setQuizPassed(true);
+            }
+          }
+        }
+      } catch (quizErr) {
+        console.error('Error loading quiz:', quizErr);
+        // Quiz is optional, so we don't set an error
+      } finally {
+        setQuizLoading(false);
+      }
     } catch (err: any) {
       console.error('Error loading lesson:', err);
       setError(err.message || 'Failed to load lesson');
+      setQuizLoading(false);
     } finally {
       setLoading(false);
     }
@@ -377,12 +407,33 @@ const LessonPlayer = () => {
             <p className="text-gray-300">{lesson?.description}</p>
           </div>
           
-          {/* Quiz section would go here */}
-          {lesson?.has_quiz && (
-            <div className="mt-8 card p-6 border border-card-border">
-              <h3 className="text-xl font-bold text-white mb-4">Knowledge Check</h3>
-              <p className="text-gray-400">Test your understanding of this lesson.</p>
-              {/* Quiz component would be implemented here */}
+          {/* Quiz section */}
+          {!quizLoading && quiz && (
+            <>
+              <QuizComponent 
+                lessonId={lessonId} 
+                quiz={quiz} 
+                onComplete={(passed) => {
+                  setQuizPassed(passed);
+                  if (passed) {
+                    // Mark lesson as completed when quiz is passed
+                    handleMarkComplete();
+                  }
+                }}
+              />
+              {!quizPassed && (
+                <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+                  <p className="text-yellow-300">⚠️ You must pass the quiz to complete this lesson and move forward.</p>
+                </div>
+              )}
+            </>
+          )}
+          
+          {quizLoading && (
+            <div className="mt-8 p-6 bg-card-bg rounded-lg border border-card-border">
+              <div className="text-center py-8">
+                <div className="text-lg text-gray-400">Loading quiz...</div>
+              </div>
             </div>
           )}
         </div>
