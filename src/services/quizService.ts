@@ -29,12 +29,25 @@ export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuest
   }
 
   // Then get the questions for this quiz
+  console.log('getQuizByLessonId: Fetching questions for lesson:', lessonId);
+  
+  // First, let's check what's actually in the database for this lesson
+  const { data: allQuestions, error: allQuestionsError } = await supabase
+    .from('quiz_questions')
+    .select('*')
+    .limit(10);
+  
+  if (allQuestions) {
+    console.log('getQuizByLessonId: All questions in DB:', allQuestions.map(q => ({
+      id: q.id,
+      lesson_id: q.lesson_id,
+      text: q.question_text?.substring(0, 30) + '...'
+    })));
+  }
+  
   const { data: questionsData, error: questionsError } = await supabase
     .from('quiz_questions')
-    .select(`
-      *,
-      quiz_options (*)
-    `)
+    .select('*')
     .eq('lesson_id', lessonId)
     .order('order_index', { ascending: true });
 
@@ -43,21 +56,66 @@ export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuest
     throw questionsError;
   }
 
+  console.log('getQuizByLessonId: Raw questions data:', questionsData?.length || 0, 'questions found');
+  if (questionsData) {
+    console.log('getQuizByLessonId: Questions sample:', questionsData.slice(0, 2).map(q => ({
+      id: q.id,
+      text: q.question_text?.substring(0, 50) + '...'
+    })));
+  }
+
   // Sort questions by order_index
   const sortedQuestions = [...(questionsData || [])].sort((a, b) => a.order_index - b.order_index);
+  console.log('getQuizByLessonId: Sorted questions count:', sortedQuestions.length);
 
-  // Attach options to each question
-  const questionsWithOptions = sortedQuestions.map(question => ({
-    ...question,
-    options: [...(question.quiz_options || [])].sort((a, b) => a.order_index - b.order_index)
-  }));
+  // Get options for each question
+  const questionsWithOptions = [];
+  console.log('getQuizByLessonId: Processing', sortedQuestions.length, 'questions');
+  
+  for (const [index, question] of sortedQuestions.entries()) {
+    console.log(`getQuizByLessonId: Processing question ${index + 1}/${sortedQuestions.length}:`, {
+      id: question.id,
+      text: question.question_text?.substring(0, 50) + '...'
+    });
+    
+    const { data: optionsData, error: optionsError } = await supabase
+      .from('quiz_options')
+      .select('*')
+      .eq('question_id', question.id)
+      .order('order_index', { ascending: true });
+    
+    if (optionsError) {
+      console.error('getQuizByLessonId: Error fetching options for question:', question.id, optionsError);
+      throw optionsError;
+    }
+    
+    console.log(`getQuizByLessonId: Question ${question.id} has ${optionsData?.length || 0} options`);
+    
+    questionsWithOptions.push({
+      ...question,
+      options: optionsData || []
+    });
+  }
+  
+  console.log('getQuizByLessonId: Built questionsWithOptions array with', questionsWithOptions.length, 'questions');
 
   const quizWithQuestions: QuizWithQuestions = {
     ...quizData,
     questions: questionsWithOptions
   };
 
-  console.log('getQuizByLessonId: Result', quizWithQuestions);
+  console.log('getQuizByLessonId: Final result structure:', {
+    quizId: quizWithQuestions.id,
+    lessonId: quizWithQuestions.lesson_id,
+    title: quizWithQuestions.title,
+    questionsCount: quizWithQuestions.questions?.length || 0,
+    questionsSample: quizWithQuestions.questions?.slice(0, 2).map(q => ({
+      id: q.id,
+      text: q.question_text?.substring(0, 50) + '...',
+      optionsCount: q.options?.length || 0
+    }))
+  });
+  
   return quizWithQuestions;
 };
 
@@ -188,91 +246,68 @@ export const upsertQuiz = async (lessonId: string, quizData: {
 
     // Process options for this question (only for multiple choice)
     if (question.question_type === 'multiple_choice' && question.options) {
-      for (const option of question.options) {
-        if (option.id && isUuid(option.id)) {
-          // Update existing option
-          console.log(`upsertQuiz: updating option (uuid ${option.id})`);
-          const { error: updateOptionError } = await supabase
-            .from('quiz_options')
-            .update({
-              option_text: option.option_text,
-              is_correct: option.is_correct,
-              order_index: option.order_index,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', option.id);
+      // Replace all options strategy: delete all existing options first
+      console.log(`upsertQuiz: replacing options for question ${questionId}`);
+      const { error: deleteOptionsError } = await supabase
+        .from('quiz_options')
+        .delete()
+        .eq('question_id', questionId);
 
-          if (updateOptionError) {
-            console.error('upsertQuiz: update quiz_options failed:', updateOptionError);
-            throw updateOptionError;
-          }
-        } else {
-          // Insert new option
-          console.log(`upsertQuiz: inserting option for question ${questionId}`);
-          const { error: insertOptionError } = await supabase
-            .from('quiz_options')
-            .insert({
-              question_id: questionId, // Always use the real question ID from DB
-              option_text: option.option_text,
-              is_correct: option.is_correct,
-              order_index: option.order_index
-            });
-
-          if (insertOptionError) {
-            console.error('upsertQuiz: insert quiz_options failed:', insertOptionError);
-            throw insertOptionError;
-          }
-        }
+      if (deleteOptionsError) {
+        console.error('upsertQuiz: delete quiz_options failed:', deleteOptionsError);
+        throw deleteOptionsError;
       }
 
-      // Clean up deleted options (if any)
-      if (question.options.length > 0) {
-        const existingOptionIds = question.options.filter(opt => opt.id).map(opt => opt.id);
-        if (existingOptionIds.length > 0) {
-          const { error: deleteOptionsError } = await supabase
-            .from('quiz_options')
-            .delete()
-            .eq('question_id', questionId)
-            .not('id', 'in', `(${existingOptionIds.join(',')})`)
-            .neq('question_id', ''); // Ensure we don't accidentally delete all options
+      // Insert all current options fresh
+      for (const [index, option] of question.options.entries()) {
+        console.log(`upsertQuiz: inserting option ${index + 1} for question ${questionId}`);
+        const { error: insertOptionError } = await supabase
+          .from('quiz_options')
+          .insert({
+            question_id: questionId,
+            option_text: option.option_text,
+            is_correct: option.is_correct,
+            order_index: index
+          });
 
-          if (deleteOptionsError) {
-            console.error('upsertQuiz: Error deleting options:', deleteOptionsError);
-            // Don't throw here as it might be because there were no old options to delete
-          }
-        } else {
-          // If no options remain, delete all options for this question
-          const { error: deleteAllOptionsError } = await supabase
-            .from('quiz_options')
-            .delete()
-            .eq('question_id', questionId);
-
-          if (deleteAllOptionsError) {
-            console.error('upsertQuiz: Error deleting all options:', deleteAllOptionsError);
-          }
+        if (insertOptionError) {
+          console.error('upsertQuiz: insert quiz_options failed:', insertOptionError);
+          throw insertOptionError;
         }
       }
     } else if (question.question_type === 'multiple_choice') {
       // If it's multiple choice but no options provided, delete existing options
+      console.log(`upsertQuiz: deleting all options for question ${questionId} (no options provided)`);
       const { error: deleteAllOptionsError } = await supabase
         .from('quiz_options')
         .delete()
         .eq('question_id', questionId);
 
       if (deleteAllOptionsError) {
-        console.error('upsertQuiz: Error deleting all options:', deleteAllOptionsError);
+        console.error('upsertQuiz: delete all quiz_options failed:', deleteAllOptionsError);
+        throw deleteAllOptionsError;
       }
     }
   }
 
   // Clean up deleted questions (if any)
+  console.log('upsertQuiz: Cleaning up questions for lesson:', lessonId);
+  console.log('upsertQuiz: Quiz data questions:', quizData.questions.map(q => ({
+    id: q.id,
+    isUuid: isUuid(q.id),
+    text: q.question_text?.substring(0, 30) + '...'
+  })));
+  
   // Only clean up if there are existing questions to preserve
   if (quizData.questions.length > 0) {
     const existingQuestionIds = quizData.questions
       .filter(q => isUuid(q.id)) // Only include real UUIDs, not temporary IDs
       .map(q => q.id as string);
     
+    console.log('upsertQuiz: Existing question IDs to preserve:', existingQuestionIds);
+    
     if (existingQuestionIds.length > 0) {
+      console.log('upsertQuiz: Deleting questions NOT in:', existingQuestionIds);
       const { error: deleteQuestionsError } = await supabase
         .from('quiz_questions')
         .delete()
@@ -283,18 +318,13 @@ export const upsertQuiz = async (lessonId: string, quizData: {
         console.error('upsertQuiz: Error deleting questions:', deleteQuestionsError);
       }
     } else {
-      // If no existing questions to preserve, delete all questions for this lesson
-      const { error: deleteAllQuestionsError } = await supabase
-        .from('quiz_questions')
-        .delete()
-        .eq('lesson_id', lessonId);
-
-      if (deleteAllQuestionsError) {
-        console.error('upsertQuiz: Error deleting all questions:', deleteAllQuestionsError);
-      }
+      // If no existing questions to preserve, this means ALL questions are new
+      // So we should NOT delete anything - all questions are meant to be kept
+      console.log('upsertQuiz: All questions are new (temporary IDs), preserving all');
     }
   } else {
     // If no questions remain, delete all questions for this lesson
+    console.log('upsertQuiz: No questions in quiz data, deleting all questions for lesson');
     const { error: deleteAllQuestionsError } = await supabase
       .from('quiz_questions')
       .delete()

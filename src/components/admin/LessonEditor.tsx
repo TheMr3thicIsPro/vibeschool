@@ -51,12 +51,29 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
       setErrors({});
     }
   }, [lesson]);
+
+  // Monitor quiz state changes for debugging
+  useEffect(() => {
+    console.log('Quiz state changed:', quiz);
+    if (quiz) {
+      console.log(`Quiz has ${quiz.questions?.length || 0} questions`);
+    }
+  }, [quiz]);
   
   const loadQuiz = async (lessonId: string) => {
     setQuizLoading(true);
     try {
+      console.log('loadQuiz: Loading quiz for lesson:', lessonId);
       const lessonQuiz = await getQuizByLessonId(lessonId);
+      console.log('loadQuiz: Loaded quiz data:', lessonQuiz);
       setQuiz(lessonQuiz);
+      
+      // Force a re-render by updating state
+      if (lessonQuiz) {
+        console.log(`loadQuiz: Setting quiz with ${lessonQuiz.questions.length} questions`);
+      } else {
+        console.log('loadQuiz: No quiz found for this lesson');
+      }
     } catch (error) {
       console.error('Error loading quiz:', error);
     } finally {
@@ -128,6 +145,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
     if (!lesson) return;
     
     try {
+      console.log('handleSaveQuiz: Saving quiz data:', quizData);
       await upsertQuiz(lesson.id, {
         title: quizData.title,
         description: quizData.description,
@@ -148,6 +166,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
       });
       
       // Reload quiz after saving
+      console.log('handleSaveQuiz: Reloading quiz after save');
       await loadQuiz(lesson.id);
       setShowQuizEditor(false);
     } catch (error) {
