@@ -24,7 +24,7 @@ const LoginPage = () => {
   // Redirect if user exists AND authLoading is false
   useEffect(() => {
     if (user && !authLoading) {
-      router.push('/social');
+      router.push('/dashboard');
     }
   }, [user, authLoading, router]);
   

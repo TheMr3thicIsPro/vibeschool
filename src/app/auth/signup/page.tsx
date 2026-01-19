@@ -27,7 +27,7 @@ const SignupPage = () => {
   // Redirect if user exists AND authLoading is false
   useEffect(() => {
     if (user && !authLoading) {
-      router.push('/social');
+      router.push('/dashboard');
     }
   }, [user, authLoading, router]);
   
@@ -102,7 +102,7 @@ const SignupPage = () => {
       } else {
         // User is automatically signed in
         setSuccessMessage('Account created successfully');
-        router.push('/social');
+        router.push('/dashboard');
       }
     } catch (err: any) {
       setErrorMessage(mapSupabaseAuthError(err));
