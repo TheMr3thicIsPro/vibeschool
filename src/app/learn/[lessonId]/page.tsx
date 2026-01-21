@@ -88,7 +88,7 @@ const LessonPlayer = () => {
           if (submission) {
             setQuizSubmission(submission);
             // Check if the submission meets passing criteria (you can adjust this)
-            if (submission.percentage >= 70) { // Assuming 70% is the passing grade
+            if (submission.score >= 70) { // Assuming 70% is the passing grade
               setQuizPassed(true);
             }
           }
