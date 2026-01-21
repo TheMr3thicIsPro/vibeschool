@@ -507,7 +507,7 @@ const LessonPlayer = () => {
                     Start Quiz
                   </button>
                 )}
-                {progress.completed && (
+                {(progress.completed || quizPassed) && (
                   <button
                     onClick={handleNextLesson}
                     className="px-4 py-2 rounded hover-lift bg-blue-600 text-white hover:bg-blue-500"
