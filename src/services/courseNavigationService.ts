@@ -577,7 +577,7 @@ export const getUserLessonProgress = async (userId: string, lessonId: string): P
     .select('*')
     .eq('user_id', userId)
     .eq('lesson_id', lessonId)
-    .single();
+    .maybeSingle();
 
   console.log('getUserLessonProgress: Result', { data, error });
   if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found
@@ -591,14 +591,20 @@ export const getUserLessonProgress = async (userId: string, lessonId: string): P
     throw error;
   }
 
-  return data || { 
-    user_id: userId, 
-    lesson_id: lessonId, 
-    completed: false, 
-    completed_at: null, 
-    last_position_seconds: 0,
-    updated_at: new Date().toISOString()
-  };
+  // Treat null as valid "no progress yet" state
+  if (!data) {
+    console.log('getUserLessonProgress: No progress found, returning default');
+    return { 
+      user_id: userId, 
+      lesson_id: lessonId, 
+      completed: false, 
+      completed_at: null, 
+      last_position_seconds: 0,
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  return data;
 };
 
 /**

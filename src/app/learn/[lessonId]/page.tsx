@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useAuthStore } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -11,6 +11,7 @@ import { getLessonById, checkLessonAccess } from '@/services/courseService';
 import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress } from '@/services/courseNavigationService';
 import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizService';
 import { QuizComponent } from '@/components/quiz/QuizComponent';
+import { loadYouTubeIFrameAPI, destroyPlayer } from '@/lib/youtube';
 
 declare global {
   interface Window {
@@ -42,7 +43,11 @@ const LessonPlayer = () => {
   
   const playerRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const [playerEl, setPlayerEl] = useState<HTMLDivElement | null>(null);
+  const playerElRef = useCallback((node: HTMLDivElement | null) => { 
+    console.log('YT DEBUG: playerElRef called with node:', !!node);
+    setPlayerEl(node);
+  }, []);
 
   useEffect(() => {
     if (user && lessonId) {
@@ -103,90 +108,132 @@ const LessonPlayer = () => {
     }
   };
 
+  // Calculate hasVideo outside useEffect for proper dependency tracking
+  const hasVideo = !!(lesson && (
+    (lesson.video_provider === 'youtube' && lesson.youtube_video_id) ||
+    (lesson.video_url && (lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be')))
+  ));
+  
   // Load YouTube API and initialize player when lesson changes
   useEffect(() => {
-    if (!lesson || !playerContainerRef.current) return;
-
-    // DEV DIAGNOSTICS: Log lesson video fields once
-    if (!devLogsShown) {
-      console.log('DEV: Selected lesson id:', lesson.id);
-      console.log('DEV: Video fields exist:', {
-        has_video_provider: !!lesson.video_provider,
-        has_youtube_video_id: !!lesson.youtube_video_id,
-        has_video_url: !!lesson.video_url,
-        video_provider: lesson.video_provider,
-        youtube_video_id: lesson.youtube_video_id,
-        video_url: lesson.video_url
-      });
-      setDevLogsShown(true);
-    }
-
-    // Check if YouTube video fields exist
-    const hasVideo =
-      (lesson.video_provider === 'youtube' && lesson.youtube_video_id) ||
-      (lesson.video_url && lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be'));
-
-    if (!hasVideo) {
-      console.warn('DEV: No video configured for this lesson:', lesson);
-      return;
-    }
-
+    console.log('YT DEBUG: useEffect triggered, lesson:', !!lesson, 'hasVideo:', hasVideo, 'playerEl:', !!playerEl);
+      
+    if (!lesson) return;
+      
     // Extract YouTube video ID from URL if needed
     let videoId = lesson.youtube_video_id;
     if (!videoId && lesson.video_url) {
       // Extract video ID from YouTube URL
-      const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\s]{11})/;
+      const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&\?\s]{11})/;
       const urlMatch = lesson.video_url.match(regExp);
       if (urlMatch) {
         videoId = urlMatch[1];
       }
     }
-
+  
     if (!videoId) {
-      console.error('DEV: Could not extract YouTube video ID from lesson data:', lesson);
+      console.log('YT DEBUG: No video ID found');
       return;
     }
-
-    // Load YouTube IFrame API if not already loaded
-    if (!window.YT) {
-      const script = document.createElement('script');
-      script.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(script);
+  
+    if (!playerEl) {
+      console.log('YT DEBUG: No player element, waiting for mount');
+      return;
+    }
+  
+    console.log('YT DEBUG: Initializing player with video:', videoId);
       
-      // Set up the onYouTubeIframeAPIReady callback
-      window.onYouTubeIframeAPIReady = () => {
-        initializePlayer(videoId);
-      };
-    } else {
-      // API already loaded, initialize player immediately
-      initializePlayer(videoId);
-    }
-  }, [lesson]);
+    let cancelled = false;
+      
+    const initializePlayer = async () => {
+      if (cancelled) return;
+        
+      try {
+        console.log('YT: loading API for video:', videoId);
+        await loadYouTubeIFrameAPI();
+          
+        if (cancelled || !playerEl) return;
+          
+        console.log('YT: creating player for video:', videoId);
+          
+        // Clean up existing player if any
+        if (playerRef.current) {
+          destroyPlayer(playerRef.current);
+        }
+          
+        // Create new player
+        playerRef.current = new window.YT.Player(playerEl, {
+          videoId: videoId,
+          width: "100%",
+          height: "100%",
+          playerVars: {
+            autoplay: 0,
+            playsinline: 1,
+            modestbranding: 1,
+            rel: 0,
+            start: 0,
+          },
+          events: {
+            onReady: (event: any) => {
+              console.log('YT: onReady fired');
+              if (!cancelled) {
+                playerRef.current = event.target;
+                setPlayerReady(true);
+                  
+                // Seek to last position after player is ready
+                setTimeout(() => {
+                  if (progress.last_position_seconds > 0 && !cancelled) {
+                    event.target.seekTo(progress.last_position_seconds, true);
+                  }
+                }, 1000);
+              }
+            },
+            onStateChange: (event: any) => {
+              if (cancelled) return;
+                
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                setIsPlaying(true);
+              } else if (event.data === window.YT.PlayerState.PAUSED || event.data === window.YT.PlayerState.ENDED) {
+                setIsPlaying(false);
+                  
+                // If video ended, mark as completed
+                if (event.data === window.YT.PlayerState.ENDED && !progress.completed) {
+                  handleMarkComplete();
+                }
+              }
+            },
+            onError: (error: any) => {
+              console.error('YT: Player error:', error);
+              if (!cancelled) {
+                setError(`Video player error: ${error?.data || 'Unknown error'}`);
+              }
+            }
+          },
+        });
+          
+      } catch (error) {
+        console.error('YT: Failed to initialize player:', error);
+        if (!cancelled) {
+          setError(`Failed to load video player: ${(error as Error)?.message || 'Unknown error'}`);
+          setPlayerReady(false);
+        }
+      }
+    };
+      
+    initializePlayer();
+      
+    // Cleanup function
+    return () => {
+      cancelled = true;
+      if (playerRef.current) {
+        destroyPlayer(playerRef.current);
+        playerRef.current = null;
+      }
+      setPlayerReady(false);
+    };
+  }, [lesson?.id, lesson?.youtube_video_id, playerEl, progress.last_position_seconds]);
 
-  const initializePlayer = (videoId: string) => {
-    if (!playerContainerRef.current || !videoId) return;
 
-    // Clean up existing player if any
-    if (playerRef.current) {
-      playerRef.current.destroy();
-    }
-
-    // Create new player
-    playerRef.current = new window.YT.Player(playerContainerRef.current, {
-      videoId: videoId,
-      playerVars: {
-        autoplay: 0,
-        playsinline: 1,
-        start: 0, // We'll seek to saved position after player is ready
-      },
-      events: {
-        onReady: onPlayerReady,
-        onStateChange: onPlayerStateChange,
-      },
-    });
-
-    setPlayerReady(true);
-  };
 
   // Handle player ready event
   const onPlayerReady = (event: any) => {
@@ -320,11 +367,6 @@ const LessonPlayer = () => {
     );
   }
 
-  // Check if video is properly configured
-  const hasVideo =
-    (lesson?.video_provider === 'youtube' && lesson?.youtube_video_id) ||
-    (lesson?.video_url && (lesson.video_url.includes('youtube.com') || lesson.video_url.includes('youtu.be')));
-
   return (
     <ProtectedRoute>
       <AppShell>
@@ -351,15 +393,26 @@ const LessonPlayer = () => {
             </div>
           </div>
           
-          <div className="bg-black rounded-lg overflow-hidden mb-6">
-            {hasVideo ? (
-              <div 
-                ref={playerContainerRef}
-                id="youtube-player" 
-                className="w-full aspect-video"
-              />
-            ) : (
-              <div className="w-full aspect-video bg-gray-900 flex items-center justify-center text-gray-400">
+          <div className="bg-black rounded-lg overflow-hidden mb-6 relative">
+            <div 
+              ref={playerElRef}
+              data-yt-container
+              className="w-full aspect-video rounded-lg overflow-hidden bg-black"
+            />
+            
+            {/* Loading overlay */}
+            {!playerReady && hasVideo && (
+              <div className="absolute inset-0 bg-black/80 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-primary mx-auto mb-4"></div>
+                  <p className="text-white">Loading video player...</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Video not configured placeholder */}
+            {!hasVideo && (
+              <div className="absolute inset-0 w-full aspect-video bg-gray-900 flex items-center justify-center text-gray-400">
                 <div className="text-center">
                   <p>Video not configured</p>
                   <p className="text-sm mt-2">Lesson ID: {lesson?.id}</p>
@@ -367,6 +420,13 @@ const LessonPlayer = () => {
                   <p className="text-xs mt-1">YouTube ID: {lesson?.youtube_video_id}</p>
                   <p className="text-xs mt-1">Video URL: {lesson?.video_url}</p>
                 </div>
+              </div>
+            )}
+            
+            {/* Debug info in development */}
+            {process.env.NODE_ENV === 'development' && !playerEl && (
+              <div className="absolute top-2 left-2 bg-red-500 text-white text-xs p-1 rounded">
+                YT container not mounted
               </div>
             )}
             

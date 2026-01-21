@@ -16,7 +16,7 @@ export const QuizComponent = ({ lessonId, quiz, onComplete }: QuizComponentProps
   const { state } = useAuthStore();
   const user = state.user;
   
-  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,9 +44,11 @@ export const QuizComponent = ({ lessonId, quiz, onComplete }: QuizComponentProps
   }, [user, lessonId]);
 
   const handleAnswer = (questionId: string, answer: string | string[]) => {
+    // Normalize answer to always be a string
+    const normalizedAnswer = typeof answer === 'string' ? answer : (answer[0] ?? '');
     setAnswers(prev => ({
       ...prev,
-      [questionId]: answer
+      [questionId]: normalizedAnswer
     }));
   };
 
@@ -119,7 +121,7 @@ export const QuizComponent = ({ lessonId, quiz, onComplete }: QuizComponentProps
               key={question.id}
               question={question}
               onAnswer={handleAnswer}
-              selectedAnswer={typeof answers[question.id] === 'string' ? answers[question.id] as string : (answers[question.id] as string[])[0] || ''}
+              selectedAnswer={answers[question.id] ?? ''}
               isSubmitted={true}
             />
           ))}
@@ -141,7 +143,7 @@ export const QuizComponent = ({ lessonId, quiz, onComplete }: QuizComponentProps
             key={question.id}
             question={question}
             onAnswer={handleAnswer}
-            selectedAnswer={typeof answers[question.id] === 'string' ? answers[question.id] as string : (answers[question.id] as string[])[0] || ''}
+            selectedAnswer={answers[question.id] ?? ''}
             isSubmitted={false}
           />
         ))}

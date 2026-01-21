@@ -10,18 +10,23 @@ function isUuid(value: string | undefined | null) {
 export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuestions | null> => {
   console.log('getQuizByLessonId: Fetching quiz for lesson:', lessonId);
   
-  // First, get the quiz itself
-  const { data: quizData, error: quizError } = await supabase
-    .from('quizzes')
-    .select('*')
-    .eq('lesson_id', lessonId)
-    .eq('is_active', true)
-    .maybeSingle();
+  try {
+    // First, get the quiz itself
+    const { data: quizData, error: quizError } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('lesson_id', lessonId)
+      .eq('is_active', true)
+      .maybeSingle();
 
-  if (quizError) {
-    console.error('getQuizByLessonId: Error fetching quiz:', quizError);
-    throw quizError;
-  }
+    if (quizError) {
+      console.error('getQuizByLessonId: Error fetching quiz:', {
+        name: quizError.name,
+        message: quizError.message,
+        details: quizError.details
+      });
+      throw quizError;
+    }
 
   // If no quiz found for this lesson, return null
   if (!quizData) {
@@ -117,6 +122,24 @@ export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuest
   });
   
   return quizWithQuestions;
+  } catch (error: any) {
+    console.error('getQuizByLessonId: Unhandled error:', {
+      name: error?.name || 'UnknownError',
+      message: error?.message || 'Unknown error occurred',
+      stack: error?.stack
+    });
+    
+    // Enhanced error categorization
+    if (error?.name === 'TypeError' && error?.message?.includes('Failed to fetch')) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        throw new Error('Network error: You appear to be offline');
+      } else {
+        throw new Error('Network error: Unable to connect to database server');
+      }
+    }
+    
+    throw error;
+  }
 };
 
 // Create or update quiz for a lesson

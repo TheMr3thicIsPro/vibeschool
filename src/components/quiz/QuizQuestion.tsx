@@ -17,7 +17,7 @@ export const QuizQuestion = ({
   isSubmitted 
 }: QuizQuestionProps) => {
   const [shortAnswer, setShortAnswer] = useState<string>(
-    typeof selectedAnswer === 'string' ? selectedAnswer : (selectedAnswer && selectedAnswer.length > 0 ? selectedAnswer[0] : '')
+    typeof selectedAnswer === 'string' ? selectedAnswer : ''
   );
 
   const handleMultipleChoiceChange = (optionId: string) => {
@@ -102,7 +102,7 @@ export const QuizQuestion = ({
           ) : (
             <div>
               <textarea
-                value={isSubmitted ? (typeof selectedAnswer === 'string' ? selectedAnswer : (selectedAnswer && selectedAnswer.length > 0 ? selectedAnswer[0] : '')) || '' : shortAnswer}
+                value={isSubmitted ? (selectedAnswer ?? '') : shortAnswer}
                 onChange={handleShortAnswerChange}
                 disabled={isSubmitted}
                 placeholder="Type your answer here..."
