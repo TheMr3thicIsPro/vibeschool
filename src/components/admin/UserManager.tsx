@@ -50,15 +50,18 @@ const UserManager = () => {
 
   const updateUserRole = async (userId: string, newRole: string) => {
     try {
+      // Use the new hardened service function
       const result = await updateUser(userId, { role: newRole });
       if (result.error) {
         setError(result.error);
+        console.error('Update user role error:', result.error);
       } else if (result.data) {
         setUsers(users.map(user => 
           user.id === userId ? result.data! : user
         ));
       }
     } catch (err) {
+      console.error('Failed to update user role:', err);
       setError('Failed to update user role');
     }
   };

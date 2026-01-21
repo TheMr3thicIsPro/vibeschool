@@ -104,6 +104,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<{ 
       return { data: null, error: 'Access denied. Admin role required.' };
     }
 
+    // Use the hardened service function
     const { data, error } = await supabase
       .from('profiles')
       .update({
@@ -112,10 +113,17 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<{ 
       })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle(); // Changed from .single() to .maybeSingle()
 
     if (error) {
+      console.error('[USER ACTION] Update error:', error);
       return { data: null, error: error.message };
+    }
+    
+    // Handle case where no rows were updated
+    if (!data) {
+      console.error('[USER ACTION] No profile found for update:', id);
+      return { data: null, error: 'No profile found for this user' };
     }
 
     // Add mock email
@@ -126,6 +134,7 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<{ 
 
     return { data: userData as User, error: null };
   } catch (error: any) {
+    console.error('[USER ACTION] Unexpected error:', error);
     return { data: null, error: error.message };
   }
 }
