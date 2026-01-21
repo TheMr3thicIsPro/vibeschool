@@ -8,7 +8,7 @@ import { Play, Pause, RotateCcw } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import { getLessonById, checkLessonAccess } from '@/services/courseService';
-import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress } from '@/services/courseNavigationService';
+import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress, getNextLesson } from '@/services/courseNavigationService';
 import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizService';
 import { QuizComponent } from '@/components/quiz/QuizComponent';
 import { loadYouTubeIFrameAPI, destroyPlayer } from '@/lib/youtube';
@@ -312,6 +312,38 @@ const LessonPlayer = () => {
     }
   };
 
+  const handleNextLesson = async () => {
+    if (!lesson || !user) return;
+    
+    try {
+      // Find the course ID from the lesson data
+      const courseId = lesson.modules?.course_id;
+      if (!courseId) {
+        console.error('Could not find course ID for lesson');
+        return;
+      }
+      
+      // Get the next lesson in the course
+      const nextLesson = await getNextLesson(user.id, courseId);
+      
+      if (nextLesson) {
+        // Navigate to the next lesson
+        window.location.href = `/learn/${nextLesson.id}`;
+      } else {
+        // If no next lesson, show a message or navigate back to course
+        alert('Congratulations! You have completed all lessons in this course.');
+        window.location.href = `/courses/${courseId}`;
+      }
+    } catch (error) {
+      console.error('Error getting next lesson:', error);
+      // Fallback to course page
+      const courseId = lesson.modules?.course_id;
+      if (courseId) {
+        window.location.href = `/courses/${courseId}`;
+      }
+    }
+  };
+
   if (loading || isCheckingAccess) {
     return (
       <ProtectedRoute>
@@ -449,17 +481,41 @@ const LessonPlayer = () => {
                 </div>
               </div>
               
-              <button
-                onClick={handleMarkComplete}
-                disabled={progress.completed}
-                className={`px-4 py-2 rounded hover-lift ${
-                  progress.completed 
-                    ? 'bg-green-800 text-green-300' 
-                    : 'bg-accent-primary text-black hover:bg-accent-primary/90'
-                }`}
-              >
-                {progress.completed ? '✓ Completed' : 'Mark as Complete'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleMarkComplete}
+                  disabled={progress.completed}
+                  className={`px-4 py-2 rounded hover-lift ${
+                    progress.completed 
+                      ? 'bg-green-800 text-green-300' 
+                      : 'bg-accent-primary text-black hover:bg-accent-primary/90'
+                  }`}
+                >
+                  {progress.completed ? '✓ Completed' : 'Mark as Complete'}
+                </button>
+                {!progress.completed && quiz && !quizPassed && (
+                  <button
+                    onClick={() => {
+                      // Scroll to the quiz section
+                      const quizSection = document.querySelector('#quiz-section');
+                      if (quizSection) {
+                        quizSection.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    className="px-4 py-2 rounded hover-lift bg-purple-600 text-white hover:bg-purple-500"
+                  >
+                    Start Quiz
+                  </button>
+                )}
+                {progress.completed && (
+                  <button
+                    onClick={handleNextLesson}
+                    className="px-4 py-2 rounded hover-lift bg-blue-600 text-white hover:bg-blue-500"
+                  >
+                    Next Lesson →
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           
@@ -469,7 +525,7 @@ const LessonPlayer = () => {
           
           {/* Quiz section */}
           {!quizLoading && quiz && (
-            <>
+            <div id="quiz-section">
               <QuizComponent 
                 lessonId={lessonId} 
                 quiz={quiz} 
@@ -486,7 +542,7 @@ const LessonPlayer = () => {
                   <p className="text-yellow-300">⚠️ You must pass the quiz to complete this lesson and move forward.</p>
                 </div>
               )}
-            </>
+            </div>
           )}
           
           {quizLoading && (
