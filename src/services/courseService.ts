@@ -296,19 +296,25 @@ export const getLatestAnnouncements = async (limit = 10) => {
 };
 
 // Get user's profile with role and plan
-export const getUserProfile = async (userId: string) => {
+export const getUserProfile = async (userId: string): Promise<{ id: string; username: string; full_name: string | null; role: string; plan: string; created_at: string; } | null> => {
   console.log('getUserProfile: Fetching profile for user:', userId);
   
   const { data, error } = await supabase
     .from('profiles')
     .select('id, username, full_name, role, plan, created_at')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Use maybeSingle to handle cases where profile doesn't exist yet
 
   console.log('getUserProfile: Result', { data, error });
   if (error) {
     console.error('getUserProfile: Error fetching profile:', error);
     throw error;
+  }
+  
+  // Return null if no profile exists
+  if (!data) {
+    console.log('getUserProfile: No profile found for user:', userId);
+    return null;
   }
 
   return data;
@@ -387,6 +393,13 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
 
   // Check if user is a member
   const profile = await getUserProfile(userId);
+  
+  // If no profile exists, user doesn't have access
+  if (!profile) {
+    console.log('checkLessonAccess: No profile found for user, denying access');
+    return { hasAccess: false, isPreview: false };
+  }
+  
   const hasAccess = profile.plan === 'member';
   
   console.log('checkLessonAccess: Member access check result:', { hasAccess, plan: profile.plan });

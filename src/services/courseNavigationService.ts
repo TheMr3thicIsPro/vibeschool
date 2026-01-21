@@ -642,7 +642,7 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     .from('profiles')
     .select('plan')
     .eq('id', userId)
-    .single();
+    .maybeSingle(); // Use maybeSingle to handle cases where profile doesn't exist yet
   
   if (profileError) {
     console.error('checkLessonAccess: Error fetching profile:', profileError);
@@ -652,6 +652,12 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
       hint: profileError?.hint,
       code: profileError?.code,
     });
+    return { hasAccess: false, isPreview: false };
+  }
+  
+  // If no profile exists, user doesn't have access
+  if (!profile) {
+    console.log('checkLessonAccess: No profile found for user, denying access');
     return { hasAccess: false, isPreview: false };
   }
 
