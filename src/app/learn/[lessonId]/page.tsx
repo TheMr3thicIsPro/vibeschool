@@ -493,7 +493,7 @@ const LessonPlayer = () => {
                 >
                   {progress.completed ? '✓ Completed' : 'Mark as Complete'}
                 </button>
-                {!progress.completed && quiz && !quizPassed && (
+                {quiz && !quizPassed && (
                   <button
                     onClick={() => {
                       // Scroll to the quiz section
@@ -504,10 +504,10 @@ const LessonPlayer = () => {
                     }}
                     className="px-4 py-2 rounded hover-lift bg-purple-600 text-white hover:bg-purple-500"
                   >
-                    Start Quiz
+                    Take Quiz
                   </button>
                 )}
-                {(progress.completed || quizPassed) && (
+                {quizPassed && (
                   <button
                     onClick={handleNextLesson}
                     className="px-4 py-2 rounded hover-lift bg-blue-600 text-white hover:bg-blue-500"
@@ -539,7 +539,7 @@ const LessonPlayer = () => {
               />
               {!quizPassed && (
                 <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-700 rounded-lg">
-                  <p className="text-yellow-300">⚠️ You must pass the quiz to complete this lesson and move forward.</p>
+                  <p className="text-yellow-300">⚠️ Complete the quiz to unlock the next lesson.</p>
                 </div>
               )}
             </div>
