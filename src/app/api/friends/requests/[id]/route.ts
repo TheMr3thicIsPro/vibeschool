@@ -4,8 +4,8 @@ import { getUserId } from '@/lib/auth/getUserFromRequest';
 
 console.log('[FRIENDREQ] Initializing /api/friends/requests/[id] route');
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  console.log("[FRIENDREQ] route PUT /api/friends/requests/[id]", params.id);
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  console.log("[FRIENDREQ] route PUT /api/friends/requests/[id]");
   
   try {
     const userId = await getUserId(request);
@@ -17,6 +17,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const { status } = await request.json();
+    const { id } = await params;
+    console.log("[FRIENDREQ] PUT request id:", id);
     
     if (!status || !['accepted', 'declined', 'cancelled'].includes(status)) {
       console.log("[FRIENDREQ] PUT /api/friends/requests/[id] - Invalid status", status);
@@ -27,10 +29,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     
     // Get the friend request to verify ownership
     const friendRequests = await db.getFriendRequests(userId);
-    const friendRequest = friendRequests.find(req => req.id === params.id);
+    const friendRequest = friendRequests.find(req => req.id === id);
     
     if (!friendRequest) {
-      console.log("[FRIENDREQ] PUT /api/friends/requests/[id] - Friend request not found", params.id);
+      console.log("[FRIENDREQ] PUT /api/friends/requests/[id] - Friend request not found", id);
       return NextResponse.json({ error: "Friend request not found" }, { status: 404 });
     }
 
@@ -48,8 +50,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Update the friend request
-    const updatedRequest = await db.updateFriendRequest(params.id, status);
-    console.log("[FRIENDREQ] PUT request updated", { requestId: params.id, status, updatedRequest });
+    const updatedRequest = await db.updateFriendRequest(id, status);
+    console.log("[FRIENDREQ] PUT request updated", { requestId: id, status, updatedRequest });
 
     return NextResponse.json({ 
       ok: true, 
@@ -62,8 +64,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  console.log("[FRIENDREQ] route DELETE /api/friends/requests/[id]", params.id);
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  console.log("[FRIENDREQ] route DELETE /api/friends/requests/[id]");
   
   try {
     const userId = await getUserId(request);
@@ -74,14 +76,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "not_authenticated" }, { status: 401 });
     }
 
+    const { id } = await params;
+    console.log("[FRIENDREQ] DELETE request id:", id);
+
     const db = await getCommunityDB();
     
     // Get the friend request to verify ownership
     const friendRequests = await db.getFriendRequests(userId);
-    const friendRequest = friendRequests.find(req => req.id === params.id);
+    const friendRequest = friendRequests.find(req => req.id === id);
     
     if (!friendRequest) {
-      console.log("[FRIENDREQ] DELETE /api/friends/requests/[id] - Friend request not found", params.id);
+      console.log("[FRIENDREQ] DELETE /api/friends/requests/[id] - Friend request not found", id);
       return NextResponse.json({ error: "Friend request not found" }, { status: 404 });
     }
 
@@ -92,8 +97,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     }
 
     // For simplicity, we'll just update the status to cancelled
-    const updatedRequest = await db.updateFriendRequest(params.id, 'cancelled');
-    console.log("[FRIENDREQ] DELETE request cancelled", { requestId: params.id, updatedRequest });
+    const updatedRequest = await db.updateFriendRequest(id, 'cancelled');
+    console.log("[FRIENDREQ] DELETE request cancelled", { requestId: id, updatedRequest });
 
     return NextResponse.json({ 
       ok: true, 
