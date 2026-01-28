@@ -89,7 +89,7 @@ export const listCourses = async (): Promise<Course[]> => {
   }
 
   // Get modules for all courses
-  const courseIds = coursesData.map(course => course.id);
+  const courseIds = coursesData.map((course: any) => course.id);
   const { data: modulesData, error: modulesError } = await supabase
     .from('modules')
     .select('id, course_id, title, order_index')
@@ -119,7 +119,7 @@ export const listCourses = async (): Promise<Course[]> => {
   }
 
   // Get lessons for all modules
-  const moduleIds = modulesData?.map(module => module.id) || [];
+  const moduleIds = modulesData?.map((module: any) => module.id) || [];
   let lessonsData: any[] = [];
   if (moduleIds.length > 0) {
     const { data: lessonsRes, error: lessonsError } = await supabase
@@ -157,10 +157,10 @@ export const listCourses = async (): Promise<Course[]> => {
   }
 
   // Combine everything
-  const result = coursesData.map(course => ({
+  const result = coursesData.map((course: any) => ({
     ...course,
     modules: modulesByCourse[course.id] ? 
-      modulesByCourse[course.id].map(module => ({
+      modulesByCourse[course.id].map((module: any) => ({
         ...module,
         lessons: lessonsByModule[module.id] || []
       })) : []
@@ -218,7 +218,7 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
   }
 
   // Get lessons for all modules in this course
-  const moduleIds = modulesData?.map(module => module.id) || [];
+  const moduleIds = modulesData?.map((module: any) => module.id) || [];
   let lessonsData: any[] = [];
   if (moduleIds.length > 0) {
     const { data: lessonsRes, error: lessonsError } = await supabase
@@ -258,7 +258,7 @@ export const getCourse = async (courseId: string, userId?: string): Promise<Cour
   // Combine everything
   const result = {
     ...courseData,
-    modules: modulesData?.map(module => ({
+    modules: modulesData?.map((module: any) => ({
       ...module,
       lessons: lessonsByModule[module.id] || []
     })) || []
@@ -300,7 +300,7 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
 
   let lessonIds: string[] = [];
   if (modulesData && modulesData.length > 0) {
-    const moduleIds = modulesData.map(module => module.id);
+    const moduleIds = modulesData.map((module: any) => module.id);
     const { data: lessonsData, error: lessonsError } = await supabase
       .from('lessons')
       .select('id')
@@ -325,7 +325,7 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
       };
     }
     
-    lessonIds = lessonsData?.map(lesson => lesson.id) || [];
+    lessonIds = lessonsData?.map((lesson: any) => lesson.id) || [];
   }
   
   const totalLessons = lessonIds.length;
@@ -357,11 +357,11 @@ export const getCourseProgress = async (userId: string, courseId: string): Promi
     throw progressError;
   }
 
-  const completedLessons = progressData?.filter(p => p.completed).length || 0;
+  const completedLessons = progressData?.filter((p: any) => p.completed).length || 0;
   const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   // Find the most recently accessed lesson
-  const sortedProgress = progressData?.sort((a, b) => 
+  const sortedProgress = progressData?.sort((a: any, b: any) => 
     new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
   const lastAccessedLessonId = sortedProgress?.[0]?.lesson_id || null;
@@ -407,7 +407,7 @@ export const getNextLesson = async (userId: string, courseId: string): Promise<L
     throw progressError;
   }
 
-  const completedLessonIds = new Set(progressData?.map(p => p.lesson_id) || []);
+  const completedLessonIds = new Set(progressData?.map((p: any) => p.lesson_id) || []);
 
   // Find first incomplete lesson in order
   for (const module of course.modules) {
@@ -696,7 +696,7 @@ export const listCoursesSafe = async (): Promise<Course[]> => {
     }
 
     // Get modules for all courses
-    const courseIds = coursesData.map(course => course.id);
+    const courseIds = coursesData.map((course: any) => course.id);
     const { data: modulesData, error: modulesError } = await supabase
       .from('modules')
       .select('id, course_id, title, order_index')
@@ -711,7 +711,7 @@ export const listCoursesSafe = async (): Promise<Course[]> => {
         hint: modulesError?.hint,
         code: modulesError?.code,
       });
-      return coursesData.map(course => ({ ...course, modules: [] })); // Return courses with empty modules
+      return coursesData.map((course: any) => ({ ...course, modules: [] })); // Return courses with empty modules
     }
 
     // Group modules by course
@@ -726,7 +726,7 @@ export const listCoursesSafe = async (): Promise<Course[]> => {
     }
 
     // Get lessons for all modules
-    const moduleIds = modulesData?.map(module => module.id) || [];
+    const moduleIds = modulesData?.map((module: any) => module.id) || [];
     let lessonsData: any[] = [];
     if (moduleIds.length > 0) {
       const { data: lessonsRes, error: lessonsError } = await supabase
@@ -760,10 +760,10 @@ export const listCoursesSafe = async (): Promise<Course[]> => {
     }
 
     // Combine everything
-    const result = coursesData.map(course => ({
+    const result = coursesData.map((course: any) => ({
       ...course,
       modules: modulesByCourse[course.id] ? 
-        modulesByCourse[course.id].map(module => ({
+        modulesByCourse[course.id].map((module: any) => ({
           ...module,
           lessons: lessonsByModule[module.id] || []
         })) : []

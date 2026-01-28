@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/context/AuthContext';
 import { checkUserAccess, getUserPurchases } from '@/services/payment/paymentService';
+import { createCheckoutSession, getStripe } from '@/services/stripe/stripeService';
 import { CreditCard, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
@@ -38,46 +39,73 @@ const PaymentsPage = () => {
     }
   };
 
-  // Mock pricing data
+  // Pricing data
   const pricingPlans = [
     {
-      id: 'monthly',
+      id: 'trial',
+      name: 'Free Trial',
+      price: '$0.00',
+      period: 'first 3 days',
+      currency: 'AUD',
+      description: 'Try before you buy - no credit card required',
+      features: [
+        'Access to first 1-2 lessons of each course',
+        'Preview premium content',
+        'No payment information needed',
+        'Easy upgrade anytime'
+      ],
+      popular: true
+    },
+    {
+      id: 'subscription',
       name: 'Monthly Subscription',
       price: '$1.99',
-      period: 'per month',
+      period: 'first month, then $7.99/month',
       currency: 'AUD',
       description: 'Access to all premium content',
       features: [
         'Full course library',
         'New modules and lessons',
         'Community access',
-        'Priority support'
-      ]
-    },
-    {
-      id: 'lifetime',
-      name: 'Lifetime Access',
-      price: '$7.99',
-      period: 'one-time',
-      currency: 'AUD',
-      description: 'One-time payment for lifetime access',
-      features: [
-        'Full course library',
-        'All future content',
-        'Community access',
         'Priority support',
-        'No recurring charges'
-      ],
-      popular: true
+        'Cancel anytime'
+      ]
     }
   ];
 
   const handleCheckout = async (planId: string) => {
-    // In a real implementation, this would redirect to Stripe checkout
-    console.log(`Initiating checkout for plan: ${planId}`);
+    if (!user) return;
     
-    // Mock redirect to Stripe
-    alert(`Redirecting to payment for ${planId} plan...`);
+    try {
+      setLoading(true);
+      
+      // Map plan IDs to our internal types
+      const planType = planId === 'trial' ? 'trial' : 'subscription';
+      
+      // Create checkout session
+      const session = await createCheckoutSession(
+        user.id, 
+        user.email!, 
+        planType
+      );
+      
+      // Redirect to Stripe checkout
+      const stripe = await getStripe();
+      const result = await stripe.redirectToCheckout({
+        sessionId: session.sessionId
+      });
+      
+      if (result.error) {
+        console.error('Stripe checkout error:', result.error);
+        alert('Error redirecting to checkout. Please try again.');
+      }
+      
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      alert(`Error: ${error.message || 'Failed to initiate checkout'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -116,7 +144,7 @@ const PaymentsPage = () => {
 
             <div className="flex border-b border-gray-700 mb-8">
               <button
-                className={`px-4 py-2 font-medium ${
+                className={`px-4 py-2 font-medium hover-lift ${
                   activeTab === 'plans'
                     ? 'text-accent-primary border-b-2 border-accent-primary'
                     : 'text-gray-400 hover:text-white'
@@ -126,7 +154,7 @@ const PaymentsPage = () => {
                 Pricing Plans
               </button>
               <button
-                className={`px-4 py-2 font-medium ${
+                className={`px-4 py-2 font-medium hover-lift ${
                   activeTab === 'history'
                     ? 'text-accent-primary border-b-2 border-accent-primary'
                     : 'text-gray-400 hover:text-white'
@@ -156,9 +184,11 @@ const PaymentsPage = () => {
                     
                     <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
                     <div className="mb-4">
-                      <span className="text-3xl font-bold text-white">{plan.price}</span>
-                      <span className="text-gray-400"> {plan.period}</span>
-                      <p className="text-gray-400 text-sm mt-1">{plan.currency}</p>
+                      <div className="mb-2">
+                        <span className="text-3xl font-bold text-white">{plan.price}</span>
+                        <span className="text-gray-400"> {plan.period}</span>
+                      </div>
+                      <p className="text-gray-400 text-sm">{plan.currency}</p>
                     </div>
                     
                     <p className="text-gray-400 mb-6">{plan.description}</p>
@@ -174,16 +204,20 @@ const PaymentsPage = () => {
                     
                     <button
                       onClick={() => handleCheckout(plan.id)}
-                      disabled={userAccess && plan.id !== 'lifetime'}
-                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors hover-lift ${
-                        userAccess && plan.id !== 'lifetime'
+                      disabled={userAccess && plan.id === 'trial'}
+                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                        userAccess && plan.id === 'trial'
                           ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : 'bg-accent-primary text-white hover:bg-accent-primary/90'
+                          : plan.id === 'trial'
+                          ? 'bg-green-600 text-white hover:bg-green-700 hover-lift'
+                          : 'bg-accent-primary text-white hover:bg-accent-primary/90 hover-lift'
                       }`}
                     >
-                      {userAccess && plan.id !== 'lifetime' 
-                        ? 'Current Plan' 
-                        : `Get ${plan.name}`}
+                      {userAccess && plan.id === 'trial' 
+                        ? 'Trial Completed' 
+                        : plan.id === 'trial'
+                        ? 'Start Free Trial'
+                        : `Subscribe Now`}
                     </button>
                   </div>
                 ))}
@@ -204,7 +238,11 @@ const PaymentsPage = () => {
                         <div className="flex justify-between items-center">
                           <div>
                             <h3 className="font-medium text-white">
-                              {purchase.product_type === 'lifetime' ? 'Lifetime Access' : 'Monthly Subscription'}
+                              {purchase.product_type === 'lifetime' 
+                                ? 'Lifetime Access' 
+                                : purchase.product_type === 'subscription'
+                                ? 'Monthly Subscription'
+                                : 'Free Trial'}
                             </h3>
                             <p className="text-gray-400 text-sm">
                               {new Date(purchase.created_at).toLocaleDateString()} • {purchase.currency} {purchase.amount_cents / 100}
@@ -241,11 +279,15 @@ const PaymentsPage = () => {
               <ul className="space-y-2 text-gray-300 text-sm">
                 <li className="flex items-start gap-2">
                   <AlertCircle size={16} className="text-gray-500 mt-0.5" />
-                  <span>First 1-2 lessons are free for all users</span>
+                  <span>3-day free trial with no credit card required</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <AlertCircle size={16} className="text-gray-500 mt-0.5" />
-                  <span>All advanced content requires an active subscription or lifetime purchase</span>
+                  <span>$1.99 for first month, then $7.99/month thereafter</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <AlertCircle size={16} className="text-gray-500 mt-0.5" />
+                  <span>Full access unlocks after trial or subscription</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <AlertCircle size={16} className="text-gray-500 mt-0.5" />
@@ -253,7 +295,7 @@ const PaymentsPage = () => {
                 </li>
                 <li className="flex items-start gap-2">
                   <AlertCircle size={16} className="text-gray-500 mt-0.5" />
-                  <span>Lifetime access overrides any active subscription</span>
+                  <span>Cancel anytime during your subscription</span>
                 </li>
               </ul>
             </div>

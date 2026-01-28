@@ -43,7 +43,7 @@ export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuest
     .limit(10);
   
   if (allQuestions) {
-    console.log('getQuizByLessonId: All questions in DB:', allQuestions.map(q => ({
+    console.log('getQuizByLessonId: All questions in DB:', allQuestions.map((q: any) => ({
       id: q.id,
       lesson_id: q.lesson_id,
       text: q.question_text?.substring(0, 30) + '...'
@@ -63,7 +63,7 @@ export const getQuizByLessonId = async (lessonId: string): Promise<QuizWithQuest
 
   console.log('getQuizByLessonId: Raw questions data:', questionsData?.length || 0, 'questions found');
   if (questionsData) {
-    console.log('getQuizByLessonId: Questions sample:', questionsData.slice(0, 2).map(q => ({
+    console.log('getQuizByLessonId: Questions sample:', questionsData.slice(0, 2).map((q: any) => ({
       id: q.id,
       text: q.question_text?.substring(0, 50) + '...'
     })));

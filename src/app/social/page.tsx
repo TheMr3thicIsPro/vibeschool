@@ -15,11 +15,14 @@ import {
 import { getConversationMembers } from '@/lib/chatService';
 import { ensureProfile } from '@/lib/ensureProfile';
 import { supabase } from '@/lib/supabase';
-import { MessageCircle, Send, Users, Search, Plus, User, Hash } from 'lucide-react';
+import { MessageCircle, Send, Users, Search, Plus, User, Hash, UserPlus, UserMinus, UserCheck, UserX, UserSearch, MoreVertical, Image as ImageIcon, File as FileIcon, Mic, Paperclip } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import ToastNotification from '@/components/ui/ToastNotification';
 import { dedupeAndSortMessages, replaceOptimisticMessage } from '@/utils/messageUtils';
+import { getCommunityDB } from '@/community/db';
+import { Friend, FriendRequest, Profile } from '@/community/db';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const SocialPage = () => {
   const { state, dispatch } = useAuthStore();
@@ -32,6 +35,7 @@ const SocialPage = () => {
   const [loading, setLoading] = useState(true);
   const [messageLoading, setMessageLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [realtimeStatus, setRealtimeStatus] = useState<'idle'|'subscribed'|'error'|'closed'>('idle');
@@ -40,6 +44,21 @@ const SocialPage = () => {
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const currentConversationIdRef = useRef<string | null>(null);
+  
+  // Community features
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
+  const [communityDb, setCommunityDb] = useState<any>(null);
+  const [showFriendsPanel, setShowFriendsPanel] = useState(false); // Toggle for friends panel
+  const [activeCommunityTab, setActiveCommunityTab] = useState<'chat' | 'discover' | 'friends' | 'requests'>('chat'); // Community tab state
+  const [searchUsername, setSearchUsername] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  
+  // Typing indicators
+  const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const didRun = useRef(false)
 
@@ -133,8 +152,84 @@ const SocialPage = () => {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
+      // Cleanup typing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
     };
   }, []);
+
+  // Handle typing indicators
+  useEffect(() => {
+    if (!communityDb || !activeConversation || !user) return;
+    
+    const handleTyping = () => {
+      if (!communityDb || !activeConversation || !user) return;
+      
+      // Send typing indicator
+      communityDb.setTypingStatus(activeConversation.id, user.id, true);
+      
+      // Clear any existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+      
+      // Set a new timeout to stop typing indicator after 2 seconds
+      typingTimeoutRef.current = setTimeout(() => {
+        communityDb.setTypingStatus(activeConversation.id, user.id, false);
+      }, 2000);
+    };
+    
+    // Monitor typing in the message input
+    const textarea = document.querySelector('textarea[placeholder="Type your message here..."]') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.addEventListener('input', handleTyping);
+      
+      return () => {
+        textarea.removeEventListener('input', handleTyping);
+        // Cleanup typing timeout
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = null;
+        }
+        // Make sure to stop typing indicator when leaving
+        if (communityDb && activeConversation && user) {
+          communityDb.setTypingStatus(activeConversation.id, user.id, false);
+        }
+      };
+    }
+  }, [communityDb, activeConversation, user]);
+
+  // Monitor typing indicators from other users
+  useEffect(() => {
+    if (!communityDb || !activeConversation || !user) return;
+    
+    const monitorTyping = async () => {
+      try {
+        const typingUsersList = await communityDb.getTypingUsers(activeConversation.id);
+        
+        // Update typing users state
+        const newTypingUsers: Record<string, boolean> = {};
+        typingUsersList.forEach((userId: string) => {
+          newTypingUsers[userId] = true;
+        });
+        setTypingUsers(newTypingUsers);
+      } catch (error) {
+        console.error('Error getting typing users:', error);
+      }
+    };
+    
+    // Update every 2 seconds
+    const typingInterval = setInterval(monitorTyping, 2000);
+    
+    // Initial load
+    monitorTyping();
+    
+    return () => {
+      clearInterval(typingInterval);
+    };
+  }, [communityDb, activeConversation, user]);
 
   // State for session conflict warning
   const [showSessionWarning, setShowSessionWarning] = useState(false);
@@ -357,6 +452,42 @@ const SocialPage = () => {
       } else {
         console.log('loadConversations: No conversations available');
       }
+      
+      // Initialize community features
+      const communityDb = await getCommunityDB();
+      setCommunityDb(communityDb);
+      
+      // Load friends and friend requests
+      if (communityDb) {
+        const userFriends = await communityDb.getFriends(user.id);
+        setFriends(userFriends);
+        
+        const userFriendRequests = await communityDb.getFriendRequests(user.id);
+        // Filter to show only pending requests
+        const pendingRequests = userFriendRequests.filter((req: any) => req.status === 'pending');
+        setFriendRequests(pendingRequests);
+        
+        // Load profiles for friends
+        const friendProfiles: Record<string, Profile> = {};
+        for (const friend of userFriends) {
+          const friendId = friend.friend_id;
+          const profile = await communityDb.getProfile(friendId);
+          if (profile) {
+            friendProfiles[friendId] = profile;
+          }
+        }
+        
+        // Also load profiles for friend request users
+        for (const request of pendingRequests) {
+          const otherUserId = request.requester_id === user?.id ? request.addressee_id : request.requester_id;
+          const profile = await communityDb.getProfile(otherUserId);
+          if (profile && !friendProfiles[otherUserId]) {
+            friendProfiles[otherUserId] = profile;
+          }
+        }
+        
+        setProfiles(friendProfiles);
+      }
     } catch (err) {
       console.error('Failed to load conversations:', err);
     } finally {
@@ -388,7 +519,7 @@ const SocialPage = () => {
       
       // Load members for the conversation with proper username sync
       console.log('loadMessages: Loading members for conversation:', activeConversation.id);
-      const membersResponse = await supabase
+      const membersResponse: any = await supabase
         .from('conversation_members')
         .select(`
           user_id,
@@ -399,16 +530,7 @@ const SocialPage = () => {
             avatar_url
           )
         `)
-        .eq('conversation_id', activeConversation.id)
-        .returns<{
-          user_id: string;
-          role: string;
-          profiles: {
-            username: string;
-            email: string;
-            avatar_url: string;
-          };
-        }[]>();
+        .eq('conversation_id', activeConversation.id);
       
       if (membersResponse.error) {
         console.error('loadMessages: Error loading members:', membersResponse.error);
@@ -447,82 +569,116 @@ const SocialPage = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeConversation || !user) {
-      console.log('handleSendMessage: Message not sent, validation failed:', { hasMessage: !!newMessage.trim(), hasActiveConversation: !!activeConversation, hasUser: !!user });
+    if ((!newMessage.trim() && !attachment) || !activeConversation || !user) {
+      console.log('handleSendMessage: Message not sent, validation failed:', { hasMessage: !!newMessage.trim(), hasAttachment: !!attachment, hasActiveConversation: !!activeConversation, hasUser: !!user });
       return;
     }
 
-    // Create a client-generated ID for optimistic update reconciliation
-    const clientGeneratedId = crypto.randomUUID();
-    
     try {
-      console.log('handleSendMessage: Attempting to send message:', { userId: user.id, conversationId: activeConversation.id, content: newMessage });
-      
-      // Create optimistic message
-      const optimisticMessage = {
-        id: 'optimistic-' + clientGeneratedId,
-        conversation_id: activeConversation.id,
-        sender_id: user.id,
-        content: newMessage,
-        created_at: new Date().toISOString(),
-        client_generated_id: clientGeneratedId,
-        pending: true
-      };
-      
-      // Immediately add optimistic message to UI
-      setMessages(prev => {
-        console.log('handleSendMessage: Adding optimistic message to UI, previous count:', prev.length);
-        const newMessages = [...prev, optimisticMessage];
-        console.log('handleSendMessage: Optimistic message added, new count:', newMessages.length);
-        return newMessages;
-      });
-      
-      // Clear input immediately
-      setNewMessage('');
-      
-      // Set loading state (only affects button, not message display)
-      setMessageLoading(true);
-      
-      // Check if user is a member of the conversation
-      const isMember = await checkConversationMembership(activeConversation.id, user.id);
-      console.log('handleSendMessage: User membership check result:', isMember);
-      
-      if (!isMember) {
-        console.log('handleSendMessage: User not a member, ensuring membership via global help API');
-        // Ensure membership by calling the global help API again
-        await getOrCreateGlobalHelpConversation();
+      // Stop typing indicator
+      if (communityDb && activeConversation && user) {
+        communityDb.setTypingStatus(activeConversation.id, user.id, false);
       }
       
-      // Send message to Supabase
-      const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
-      console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message with server response:', dbMessage);
-      
-      // IMMEDIATELY update the UI to replace the optimistic message with the real one
-      // This ensures the UI reflects the actual state regardless of real-time delivery
-      setMessages(prev => {
-        console.log('handleSendMessage: Replacing optimistic message in UI, previous count:', prev.length);
-        const updatedMessages = prev.map(msg => {
-          if (msg.client_generated_id === clientGeneratedId) {
-            console.log('handleSendMessage: Found optimistic message to replace with server response');
-            return { ...dbMessage, pending: false };
-          }
-          return msg;
+      // Handle attachment if present
+      if (attachment) {
+        // Upload file to the attachment API
+        const formData = new FormData();
+        formData.append('file', attachment);
+        formData.append('conversationId', activeConversation.id);
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
         });
-        console.log('handleSendMessage: Optimistic message replaced, new count:', updatedMessages.length);
-        return updatedMessages;
-      });
+        
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+        
+        const result = await response.json();
+        
+        // Send a message with the attachment URL
+        if (communityDb) {
+          await communityDb.createMessage({
+            conversation_id: activeConversation.id,
+            sender_id: user.id,
+            body: newMessage || `Shared a file: ${attachment.name}`,
+            attachment_url: result.url,
+            attachment_type: attachment.type,
+          });
+        }
+        
+        // Reset attachment
+        setAttachment(null);
+        
+        // Clear file input
+        const fileInput = document.getElementById('attachment-input') as HTMLInputElement;
+        if (fileInput) {
+          fileInput.value = '';
+        }
+      } else {
+        // Create a client-generated ID for optimistic update reconciliation
+        const clientGeneratedId = crypto.randomUUID();
+        
+        console.log('handleSendMessage: Attempting to send message:', { userId: user.id, conversationId: activeConversation.id, content: newMessage });
+        
+        // Create optimistic message
+        const optimisticMessage = {
+          id: 'optimistic-' + clientGeneratedId,
+          conversation_id: activeConversation.id,
+          sender_id: user.id,
+          content: newMessage,
+          created_at: new Date().toISOString(),
+          client_generated_id: clientGeneratedId,
+          pending: true
+        };
+        
+        // Immediately add optimistic message to UI
+        setMessages(prev => {
+          console.log('handleSendMessage: Adding optimistic message to UI, previous count:', prev.length);
+          const newMessages = [...prev, optimisticMessage];
+          console.log('handleSendMessage: Optimistic message added, new count:', newMessages.length);
+          return newMessages;
+        });
+        
+        // Clear input immediately
+        setNewMessage('');
+        
+        // Set loading state (only affects button, not message display)
+        setMessageLoading(true);
+        
+        // Check if user is a member of the conversation
+        const isMember = await checkConversationMembership(activeConversation.id, user.id);
+        console.log('handleSendMessage: User membership check result:', isMember);
+        
+        if (!isMember) {
+          console.log('handleSendMessage: User not a member, ensuring membership via global help API');
+          // Ensure membership by calling the global help API again
+          await getOrCreateGlobalHelpConversation();
+        }
+        
+        // Send message to Supabase
+        const dbMessage = await sendMessage(user.id, activeConversation.id, newMessage, clientGeneratedId);
+        console.log('handleSendMessage: Message sent to Supabase, replacing optimistic message with server response:', dbMessage);
+        
+        // IMMEDIATELY update the UI to replace the optimistic message with the real one
+        // This ensures the UI reflects the actual state regardless of real-time delivery
+        setMessages(prev => {
+          console.log('handleSendMessage: Replacing optimistic message in UI, previous count:', prev.length);
+          const updatedMessages = prev.map(msg => {
+            if (msg.client_generated_id === clientGeneratedId) {
+              console.log('handleSendMessage: Found optimistic message to replace with server response');
+              return { ...dbMessage, pending: false };
+            }
+            return msg;
+          });
+          console.log('handleSendMessage: Optimistic message replaced, new count:', updatedMessages.length);
+          return updatedMessages;
+        });
+      }
     } catch (err) {
       console.error('Failed to send message:', err);
-      
-      // Remove the optimistic message when sending fails
-      setMessages(prev => {
-        console.log('handleSendMessage: Removing failed optimistic message, previous count:', prev.length);
-        const filteredMessages = prev.filter(msg => 
-          !(msg as any).pending || (msg as any).client_generated_id !== clientGeneratedId
-        );
-        console.log('handleSendMessage: Failed optimistic message removed, new count:', filteredMessages.length);
-        return filteredMessages;
-      });
       
       // Show error to user
       setErrorMessage('Message failed to send. Please try again.');
@@ -560,16 +716,7 @@ const SocialPage = () => {
             avatar_url
           )
         `)
-        .eq('conversation_id', activeConversation.id)
-        .returns<{
-          user_id: string;
-          role: string;
-          profiles: {
-            username: string;
-            email: string;
-            avatar_url: string;
-          };
-        }[]>();
+        .eq('conversation_id', activeConversation.id);
       
       if (membersResponse.error) {
         console.error('refreshMembers: Error refreshing members:', membersResponse.error);
@@ -665,7 +812,7 @@ const SocialPage = () => {
           schema: 'public',
           table: 'profiles'
         },
-        (payload) => {
+        (payload: any) => {
           console.log('Real-time profile update received:', payload);
           
           // Update the members state to reflect the new username
@@ -854,26 +1001,349 @@ const SocialPage = () => {
             </div>
           </div>
 
-          {/* Main chat area with members sidebar */}
+          {/* Main chat area with friends panel and members sidebar */}
           <div className="flex-1 flex">
+            {/* Friends Panel - Collapsible */}
+            {showFriendsPanel && (
+              <div className="w-80 bg-card-bg border-r border-card-border flex flex-col">
+                <div className="p-4 border-b border-card-border flex justify-between items-center">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Users className="text-accent-primary" size={20} />
+                    Community
+                  </h2>
+                  <button 
+                    onClick={() => setShowFriendsPanel(false)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    <UserX size={20} />
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="space-y-6">
+                    {/* Friends Section */}
+                    <div>
+                      <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-md font-semibold text-white flex items-center gap-2">
+                          <UserCheck className="text-accent-primary" size={16} />
+                          Friends ({friends.length})
+                        </h3>
+                        <button 
+                          onClick={async () => {
+                            // Create a group chat with friends
+                            if (communityDb && user) {
+                              try {
+                                // Create a group conversation
+                                const groupConversation = await communityDb.createConversation(true, user.id, 'My Group Chat', []);
+                                setConversations(prev => [...prev, groupConversation]);
+                                setActiveConversation(groupConversation);
+                                setShowFriendsPanel(false); // Close panel after selecting
+                              } catch (error) {
+                                console.error('Failed to create group chat:', error);
+                              }
+                            }
+                          }}
+                          className="text-xs bg-accent-primary/20 hover:bg-accent-primary/30 text-accent-primary px-2 py-1 rounded"
+                        >
+                          Create Group
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {friends.length > 0 ? (
+                          friends.map((friend: any) => {
+                            const friendId = friend.friend_id;
+                            const profile = profiles[friendId];
+                            const displayName = profile?.username || `User ${friendId.substring(0, 8)}`;
+                            const displayAvatar = profile?.avatar_url || displayName.charAt(0).toUpperCase();
+                            
+                            return (
+                              <div key={friendId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                  {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
+                                    <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                                  ) : (
+                                    <span>{displayAvatar}</span>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-white text-sm">{displayName}</p>
+                                  <p className="text-xs text-gray-500">{profile?.display_name || 'Online'}</p>
+                                </div>
+                                <button 
+                                  onClick={async () => {
+                                    // Create DM with friend
+                                    if (communityDb && user) {
+                                      try {
+                                        const dmConversation = await createDirectMessageConversation(user.id, friendId);
+                                        setConversations(prev => [...prev, dmConversation]);
+                                        setActiveConversation(dmConversation);
+                                        setShowFriendsPanel(false); // Close panel after selecting
+                                      } catch (error) {
+                                        console.error('Failed to create DM:', error);
+                                      }
+                                    }
+                                  }}
+                                  className="p-1 rounded hover:bg-gray-700"
+                                >
+                                  <MessageCircle size={16} />
+                                </button>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-gray-500 text-sm py-2">No friends yet</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Friend Requests Section */}
+                    <div>
+                      <h3 className="text-md font-semibold text-white mb-3 flex items-center gap-2">
+                        <UserPlus className="text-accent-primary" size={16} />
+                        Requests ({friendRequests.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {friendRequests.length > 0 ? (
+                          friendRequests.map((request: any) => {
+                            const isOutgoing = request.requester_id === user?.id;
+                            const otherUserId = isOutgoing ? request.addressee_id : request.requester_id;
+                            
+                            // Get profile from loaded profiles
+                            const otherUserProfile = profiles[otherUserId];
+                            const displayName = otherUserProfile?.username || `User ${otherUserId.substring(0, 8)}`;
+                            const displayAvatar = otherUserProfile?.avatar_url || displayName.charAt(0).toUpperCase();
+                            
+                            return (
+                              <div key={request.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-800">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                  {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
+                                    <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                                  ) : (
+                                    <span>{displayAvatar}</span>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-white text-sm">{displayName}</p>
+                                  <p className="text-xs text-gray-500">{isOutgoing ? 'Sent' : 'Received'}</p>
+                                </div>
+                                {!isOutgoing && (
+                                  <div className="flex gap-1">
+                                    <button 
+                                      onClick={async () => {
+                                        if (communityDb) {
+                                          await communityDb.updateFriendRequest(request.id, 'accepted');
+                                          // Refresh requests
+                                          const updatedRequests = await communityDb.getFriendRequests(user.id);
+                                          setFriendRequests(updatedRequests.filter((req: any) => req.status === 'pending'));
+                                          // Add to friends list
+                                          const newFriend = { user_id: user.id, friend_id: otherUserId, created_at: new Date().toISOString() };
+                                          setFriends(prev => [...prev, newFriend]);
+                                          
+                                          // Add profile to profiles
+                                          if (otherUserProfile) {
+                                            setProfiles(prev => ({ ...prev, [otherUserId]: otherUserProfile }));
+                                          }
+                                        }
+                                      }}
+                                      className="p-1 rounded bg-green-600 hover:bg-green-500"
+                                    >
+                                      <UserCheck size={14} />
+                                    </button>
+                                    <button 
+                                      onClick={async () => {
+                                        if (communityDb) {
+                                          await communityDb.updateFriendRequest(request.id, 'declined');
+                                          // Refresh requests
+                                          const updatedRequests = await communityDb.getFriendRequests(user.id);
+                                          setFriendRequests(updatedRequests.filter((req: any) => req.status === 'pending'));
+                                        }
+                                      }}
+                                      className="p-1 rounded bg-red-600 hover:bg-red-500"
+                                    >
+                                      <UserX size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="text-gray-500 text-sm py-2">No pending requests</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Add Friend Section */}
+                    <div>
+                      <h3 className="text-md font-semibold text-white mb-3 flex items-center gap-2">
+                        <UserSearch className="text-accent-primary" size={16} />
+                        Add Friend
+                      </h3>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Username"
+                          value={searchUsername}
+                          onChange={(e) => setSearchUsername(e.target.value)}
+                          className="flex-1 bg-gray-800 text-white rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                          onKeyPress={async (e) => {
+                            if (e.key === 'Enter' && communityDb && searchUsername.trim()) {
+                              setLoadingSearch(true);
+                              try {
+                                const results = await communityDb.searchProfiles(searchUsername.trim());
+                                setSearchResults(results);
+                              } catch (error) {
+                                console.error('Error searching profiles:', error);
+                              } finally {
+                                setLoadingSearch(false);
+                              }
+                            }
+                          }}
+                        />
+                        <button 
+                          className="px-3 py-2 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                          onClick={async () => {
+                            if (communityDb && searchUsername.trim()) {
+                              setLoadingSearch(true);
+                              try {
+                                const results = await communityDb.searchProfiles(searchUsername.trim());
+                                setSearchResults(results);
+                              } catch (error) {
+                                console.error('Error searching profiles:', error);
+                              } finally {
+                                setLoadingSearch(false);
+                              }
+                            }
+                          }}
+                        >
+                          {loadingSearch ? 'Searching...' : 'Search'}
+                        </button>
+                      </div>
+                      
+                      {searchResults.length > 0 && (
+                        <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+                          {searchResults.map((result: any) => {
+                            const isAlreadyFriend = friends.some(f => f.friend_id === result.id);
+                            const isOwnProfile = result.id === user?.id;
+                            const hasSentRequest = friendRequests.some(req => 
+                              req.requester_id === user?.id && req.addressee_id === result.id
+                            );
+                            
+                            return (
+                              <div key={result.id} className="flex items-center gap-3 p-2 rounded-lg bg-gray-800">
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                                  {typeof result.avatar_url === 'string' && result.avatar_url.startsWith('http') ? (
+                                    <img src={result.avatar_url} alt={result.username} className="w-full h-full rounded-full object-cover" />
+                                  ) : (
+                                    <span>{result.username.charAt(0).toUpperCase()}</span>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-white text-sm">{result.username}</p>
+                                  <p className="text-xs text-gray-500">{result.display_name}</p>
+                                </div>
+                                {!isAlreadyFriend && !isOwnProfile && !hasSentRequest && (
+                                  <button 
+                                    onClick={async () => {
+                                      if (communityDb && user) {
+                                        try {
+                                          await communityDb.createFriendRequest(user.id, result.id);
+                                          setToastMessage('Friend request sent!');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        } catch (error) {
+                                          console.error('Error sending friend request:', error);
+                                          setToastMessage('Failed to send friend request');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        }
+                                      }
+                                    }}
+                                    className="p-1 rounded bg-accent-primary hover:bg-accent-primary/90 mr-1"
+                                  >
+                                    <UserPlus size={14} />
+                                  </button>
+                                )}
+                                {(isAlreadyFriend || isOwnProfile) && (
+                                  <span className="text-xs text-gray-500">
+                                    {isOwnProfile ? 'You' : 'Friend'}
+                                  </span>
+                                )}
+                                {hasSentRequest && (
+                                  <span className="text-xs text-yellow-500">
+                                    Sent
+                                  </span>
+                                )}
+                                {isAlreadyFriend && (
+                                  <button 
+                                    onClick={async () => {
+                                      // Create DM with friend
+                                      if (communityDb && user) {
+                                        try {
+                                          const dmConversation = await createDirectMessageConversation(user.id, result.id);
+                                          setConversations(prev => [...prev, dmConversation]);
+                                          setActiveConversation(dmConversation);
+                                          setShowFriendsPanel(false); // Close panel after selecting
+                                        } catch (error) {
+                                          console.error('Failed to create DM:', error);
+                                        }
+                                      }
+                                    }}
+                                    className="p-1 rounded hover:bg-gray-700"
+                                  >
+                                    <MessageCircle size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex-1 flex flex-col">
-              {/* Chat header */}
+              {/* Community Tab Navigation */}
               <div className="h-16 bg-card-bg border-b border-card-border flex items-center px-6">
                 <div className="flex items-center gap-3">
-                  {activeConversation?.name === 'Global Help' ? (
-                    <Hash className="text-accent-primary" size={24} />
-                  ) : (
-                    <User className="text-gray-400" size={24} />
-                  )}
-                  <div>
-                    <h3 className="font-bold text-white">
-                      {activeConversation?.name || 'Global Help'}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {activeConversation?.name === 'Global Help' 
-                        ? 'General help and discussions' 
-                        : 'Direct message'}
-                    </p>
+                  {/* Toggle Friends Panel Button */}
+                  <button 
+                    onClick={() => setShowFriendsPanel(!showFriendsPanel)}
+                    className="mr-2 p-2 rounded hover:bg-gray-800"
+                    title="Community"
+                  >
+                    <Users size={20} />
+                  </button>
+                  
+                  {/* Community Tabs */}
+                  <div className="flex space-x-1">
+                    <button
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'chat' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => setActiveCommunityTab('chat')}
+                    >
+                      Chat
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'discover' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => setActiveCommunityTab('discover')}
+                    >
+                      Discover
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'friends' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => setActiveCommunityTab('friends')}
+                    >
+                      Friends
+                    </button>
+                    <button
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'requests' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      onClick={() => setActiveCommunityTab('requests')}
+                    >
+                      Requests
+                    </button>
                   </div>
                 </div>
                 
@@ -890,80 +1360,492 @@ const SocialPage = () => {
                 </div>
               </div>
 
-              {/* Messages area */}
+              {/* Tab Content Area */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.map((message, index) => {
-                  const isMe = message.sender_id === user?.id;
-                  const senderProfile = members.find(member => member.user_id === message.sender_id)?.profiles;
-                  const displayName = isMe ? 'You' : message.username || senderProfile?.username || senderProfile?.email?.split('@')[0] || 'Unknown User';
-                  const displayAvatar = message.avatar_url || senderProfile?.avatar_url || (message.username?.charAt(0).toUpperCase() || senderProfile?.username?.charAt(0).toUpperCase() || 'M');
-                  
-                  // Log message rendering
-                  console.log('SocialPage: Rendering message', index, 'ID:', message.id, 'Content:', message.content, 'Sender:', message.sender_id, 'IsMe:', isMe);
-                  
-                  return (
-                  <div key={message.id} className="flex gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                      {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
-                        <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
-                      ) : (
-                        <span className="text-accent-primary font-bold">{displayAvatar}</span>
-                      )}
-                    </div>
+                {activeCommunityTab === 'chat' && (
+                  <>
+                    {messages.map((message, index) => {
+                      const isMe = message.sender_id === user?.id;
+                      const senderProfile = members.find(member => member.user_id === message.sender_id)?.profiles;
+                      const displayName = isMe ? 'You' : message.username || senderProfile?.username || senderProfile?.email?.split('@')[0] || 'Unknown User';
+                      const displayAvatar = message.avatar_url || senderProfile?.avatar_url || (message.username?.charAt(0).toUpperCase() || senderProfile?.username?.charAt(0).toUpperCase() || 'M');
+                      
+                      // Log message rendering
+                      console.log('SocialPage: Rendering message', index, 'ID:', message.id, 'Content:', message.content, 'Sender:', message.sender_id, 'IsMe:', isMe);
+                      
+                      return (
+                      <div key={message.id} className="flex gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                          {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
+                            <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            <span className="text-accent-primary font-bold">{displayAvatar}</span>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-medium text-white">{displayName}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {message.read_at && (
+                              <span className="text-xs text-blue-400">
+                                ✓✓
+                              </span>
+                            )}
+                          </div>
+                          <div className={`mt-1 text-gray-300 bg-gray-800 p-3 rounded-lg max-w-3xl ${
+                            message.pending ? 'opacity-60 italic' : ''
+                          }`}>
+                            {message.is_attachment_upload ? (
+                              <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-primary"></div>
+                                <span>{message.content}</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div>
+                                  {message.content}
+                                </div>
+                                {message.attachment_url && (
+                                  <div className="mt-2">
+                                    {message.attachment_type?.startsWith('image/') ? (
+                                      <img 
+                                        src={message.attachment_url} 
+                                        alt="Attachment" 
+                                        className="max-w-xs max-h-48 rounded-lg border border-gray-700"
+                                        onError={(e) => {
+                                          const target = e.target as HTMLImageElement;
+                                          target.onerror = null; // prevents infinite loop
+                                          target.style.display = 'none'; // hide broken image
+                                          target.previousElementSibling?.classList.add('text-red-500'); // add error to text
+                                        }}
+                                      />
+                                    ) : (
+                                      <a 
+                                        href={message.attachment_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300"
+                                      >
+                                        <FileIcon size={16} />
+                                        Download File
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                                {message.pending && <span className="ml-2 text-xs text-gray-400">Sending...</span>}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      )})}
+                    <div ref={messagesEndRef} />
                     
-                    <div className="flex-1">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-white">{displayName}</span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {/* Typing indicators */}
+                    {Object.entries(typingUsers).length > 0 && (
+                      <div className="px-4 py-2 text-sm text-gray-400 flex items-center">
+                        <div className="flex space-x-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: `${i * 0.1}s` }}
+                            ></div>
+                          ))}
+                        </div>
+                        <span className="ml-2">
+                          {Object.keys(typingUsers).length === 1 
+                            ? 'Someone is typing...' 
+                            : `${Object.keys(typingUsers).length} people are typing...`}
                         </span>
                       </div>
-                      <div className={`mt-1 text-gray-300 bg-gray-800 p-3 rounded-lg max-w-3xl ${
-                        message.pending ? 'opacity-60 italic' : ''
-                      }`}>
-                        {message.content}
-                        {message.pending && <span className="ml-2 text-xs text-gray-400">Sending...</span>}
+                    )}
+                  </>
+                )}
+                
+                {activeCommunityTab === 'discover' && (
+                  <div className="space-y-6">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-5 w-5 text-gray-400" />
                       </div>
+                      <input
+                        type="text"
+                        placeholder="Search users by username or display name..."
+                        value={searchUsername}
+                        onChange={(e) => setSearchUsername(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+                        onKeyPress={async (e) => {
+                          if (e.key === 'Enter' && communityDb && searchUsername.trim()) {
+                            setLoadingSearch(true);
+                            try {
+                              const results = await communityDb.searchProfiles(searchUsername.trim());
+                              setSearchResults(results);
+                            } catch (error) {
+                              console.error('Error searching profiles:', error);
+                            } finally {
+                              setLoadingSearch(false);
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                    <button 
+                      className="px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90"
+                      onClick={async () => {
+                        if (communityDb && searchUsername.trim()) {
+                          setLoadingSearch(true);
+                          try {
+                            const results = await communityDb.searchProfiles(searchUsername.trim());
+                            setSearchResults(results);
+                          } catch (error) {
+                            console.error('Error searching profiles:', error);
+                          } finally {
+                            setLoadingSearch(false);
+                          }
+                        }
+                      }}
+                    >
+                      {loadingSearch ? 'Searching...' : 'Search Users'}
+                    </button>
+                    
+                    <div className="space-y-3">
+                      {searchResults.length > 0 ? (
+                        searchResults.map((result: any) => {
+                          const isAlreadyFriend = friends.some(f => f.friend_id === result.id);
+                          const isOwnProfile = result.id === user?.id;
+                          const hasSentRequest = friendRequests.some(req => 
+                            req.requester_id === user?.id && req.addressee_id === result.id
+                          );
+                          
+                          return (
+                            <div key={result.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-800">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-bold">
+                                {typeof result.avatar_url === 'string' && result.avatar_url.startsWith('http') ? (
+                                  <img src={result.avatar_url} alt={result.username} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  <span>{result.username.charAt(0).toUpperCase()}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-white truncate">{result.username}</p>
+                                <p className="text-xs text-gray-400 truncate">{result.display_name}</p>
+                              </div>
+                              {!isAlreadyFriend && !isOwnProfile && !hasSentRequest && (
+                                <button 
+                                  onClick={async () => {
+                                    if (communityDb && user) {
+                                      try {
+                                        await communityDb.createFriendRequest(user.id, result.id);
+                                        setToastMessage('Friend request sent!');
+                                        setShowToast(true);
+                                        setTimeout(() => setShowToast(false), 3000);
+                                      } catch (error) {
+                                        console.error('Error sending friend request:', error);
+                                        setToastMessage('Failed to send friend request');
+                                        setShowToast(true);
+                                        setTimeout(() => setShowToast(false), 3000);
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                                >
+                                  Add Friend
+                                </button>
+                              )}
+                              {isAlreadyFriend && (
+                                <button 
+                                  onClick={async () => {
+                                    // Create DM with friend
+                                    if (communityDb && user) {
+                                      try {
+                                        const dmConversation = await createDirectMessageConversation(user.id, result.id);
+                                        setConversations(prev => [...prev, dmConversation]);
+                                        setActiveConversation(dmConversation);
+                                      } catch (error) {
+                                        console.error('Failed to create DM:', error);
+                                      }
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-500"
+                                >
+                                  Message
+                                </button>
+                              )}
+                              {(isOwnProfile) && (
+                                <span className="px-3 py-1 bg-gray-600 text-gray-300 rounded text-sm">
+                                  You
+                                </span>
+                              )}
+                              {hasSentRequest && (
+                                <span className="px-3 py-1 bg-yellow-600 text-yellow-100 rounded text-sm">
+                                  Pending
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>Search for users to connect with them</p>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  )})}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {/* Message input */}
-              <div className="p-4 border-t border-card-border">
-                {errorMessage && (
-                  <div className="mb-2 p-2 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
-                    {errorMessage}
+                )}
+                
+                {activeCommunityTab === 'friends' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-semibold">Friends ({friends.length})</h2>
+                      <button 
+                        onClick={async () => {
+                          // Create a group chat with friends
+                          if (communityDb && user) {
+                            try {
+                              // Create a group conversation
+                              const groupConversation = await communityDb.createConversation(true, user.id, 'My Group Chat', []);
+                              setConversations(prev => [...prev, groupConversation]);
+                              setActiveConversation(groupConversation);
+                            } catch (error) {
+                              console.error('Failed to create group chat:', error);
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 text-sm"
+                      >
+                        Create Group
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {friends.length > 0 ? (
+                        friends.map((friend: any) => {
+                          const friendId = friend.friend_id;
+                          const profile = profiles[friendId];
+                          const displayName = profile?.username || `User ${friendId.substring(0, 8)}`;
+                          const displayAvatar = profile?.avatar_url || displayName.charAt(0).toUpperCase();
+                          
+                          return (
+                            <div key={friendId} className="flex items-center gap-3 p-3 rounded-lg bg-gray-800">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-bold">
+                                {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
+                                  <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  <span>{displayAvatar}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-white truncate">{displayName}</p>
+                                <p className="text-xs text-gray-400 truncate">{profile?.display_name || 'Online'}</p>
+                              </div>
+                              <button 
+                                onClick={async () => {
+                                  // Create DM with friend
+                                  if (communityDb && user) {
+                                    try {
+                                      const dmConversation = await createDirectMessageConversation(user.id, friendId);
+                                      setConversations(prev => [...prev, dmConversation]);
+                                      setActiveConversation(dmConversation);
+                                    } catch (error) {
+                                      console.error('Failed to create DM:', error);
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-1 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                              >
+                                Message
+                              </button>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <p>You don't have any friends yet</p>
+                          <p className="text-sm mt-2">Search for users to add friends</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-                <div className="flex gap-3">
-                  <div className="flex-1 relative">
-                    <textarea
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder="Type your message here..."
-                      className="w-full min-h-12 max-h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent resize-none"
-                      rows={1}
-                    />
+                
+                {activeCommunityTab === 'requests' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-semibold">Friend Requests</h2>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {friendRequests.length > 0 ? (
+                        friendRequests.map((request: any) => {
+                          const isOutgoing = request.requester_id === user?.id;
+                          const otherUserId = isOutgoing ? request.addressee_id : request.requester_id;
+                          
+                          // Get profile from loaded profiles
+                          const otherUserProfile = profiles[otherUserId];
+                          const displayName = otherUserProfile?.username || `User ${otherUserId.substring(0, 8)}`;
+                          const displayAvatar = otherUserProfile?.avatar_url || displayName.charAt(0).toUpperCase();
+                          
+                          return (
+                            <div key={request.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-800">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white font-bold">
+                                {typeof displayAvatar === 'string' && displayAvatar.startsWith('http') ? (
+                                  <img src={displayAvatar} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                  <span>{displayAvatar}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-white truncate">{displayName}</p>
+                                <p className="text-xs text-gray-400 truncate">{isOutgoing ? 'Sent' : 'Received'}</p>
+                              </div>
+                              {isOutgoing ? (
+                                <span className="px-3 py-1 bg-yellow-600 text-yellow-100 rounded text-sm">
+                                  Pending
+                                </span>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <button 
+                                    onClick={async () => {
+                                      if (communityDb) {
+                                        await communityDb.updateFriendRequest(request.id, 'accepted');
+                                        // Refresh requests
+                                        const updatedRequests = await communityDb.getFriendRequests(user.id);
+                                        setFriendRequests(updatedRequests.filter((req: any) => req.status === 'pending'));
+                                        // Add to friends list
+                                        const newFriend = { user_id: user.id, friend_id: otherUserId, created_at: new Date().toISOString() };
+                                        setFriends(prev => [...prev, newFriend]);
+                                        
+                                        // Add profile to profiles
+                                        if (otherUserProfile) {
+                                          setProfiles(prev => ({ ...prev, [otherUserId]: otherUserProfile }));
+                                        }
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-500"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button 
+                                    onClick={async () => {
+                                      if (communityDb) {
+                                        await communityDb.updateFriendRequest(request.id, 'declined');
+                                        // Refresh requests
+                                        const updatedRequests = await communityDb.getFriendRequests(user.id);
+                                        setFriendRequests(updatedRequests.filter((req: any) => req.status === 'pending'));
+                                      }
+                                    }}
+                                    className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-500"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-center py-8 text-gray-500">
+                          <UserPlus className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <p>No pending friend requests</p>
+                          <p className="text-sm mt-2">Friend requests will appear here</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={messageLoading || !newMessage.trim()}
-                    className={`self-end px-4 py-2 rounded-lg flex items-center gap-2 hover-lift ${
-                      messageLoading || !newMessage.trim()
-                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                        : 'bg-accent-primary text-white hover:bg-accent-primary/90'
-                    }`}
-                  >
-                    <Send size={18} />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Press Enter to send, Shift+Enter for new line
-                </p>
+                )}
               </div>
+
+              {activeCommunityTab === 'chat' && (
+                <div className="p-4 border-t border-card-border">
+                  {errorMessage && (
+                    <div className="mb-2 p-2 bg-red-900/50 border border-red-700 rounded text-red-200 text-sm">
+                      {errorMessage}
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <div className="flex-1 relative">
+                      <textarea
+                        value={newMessage}
+                        onChange={(e) => {
+                          setNewMessage(e.target.value);
+                          // Trigger typing indicator manually
+                          if (communityDb && activeConversation && user && e.target.value.trim() !== '') {
+                            communityDb.setTypingStatus(activeConversation.id, user.id, true);
+                                          
+                            // Clear any existing timeout
+                            if (typingTimeoutRef.current) {
+                              clearTimeout(typingTimeoutRef.current);
+                            }
+                                          
+                            // Set a new timeout to stop typing indicator after 2 seconds
+                            typingTimeoutRef.current = setTimeout(() => {
+                              communityDb.setTypingStatus(activeConversation.id, user.id, false);
+                            }, 2000);
+                          }
+                        }}
+                        onKeyPress={handleKeyPress}
+                        placeholder="Type your message here..."
+                        className="w-full min-h-12 max-h-32 p-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent resize-none"
+                        rows={1}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="self-end p-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        onClick={() => {
+                          // Trigger file picker
+                          document.getElementById('attachment-input')?.click();
+                        }}
+                      >
+                        <Paperclip size={18} />
+                        <input
+                          id="attachment-input"
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setAttachment(file);
+                              // Show a temporary message indicating the file is being uploaded
+                              if (file && activeConversation && user) {
+                                const tempMessage = {
+                                  id: 'temp-' + Date.now(),
+                                  conversation_id: activeConversation.id,
+                                  sender_id: user.id,
+                                  content: `Uploading: ${file.name}`,
+                                  created_at: new Date().toISOString(),
+                                  is_attachment_upload: true
+                                };
+                                setMessages(prev => [...prev, tempMessage]);
+                              }
+                            }
+                          }}
+                        />
+                      </button>
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={messageLoading || (!newMessage.trim() && !attachment)}
+                        className={`self-end px-4 py-2 rounded-lg flex items-center gap-2 hover-lift ${
+                          messageLoading || (!newMessage.trim() && !attachment)
+                            ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                            : 'bg-accent-primary text-white hover:bg-accent-primary/90'
+                        }`}
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Press Enter to send, Shift+Enter for new line
+                  </p>
+                </div>
+              )}
             </div>
             
             {/* Members sidebar */}
@@ -995,9 +1877,76 @@ const SocialPage = () => {
                           <p className="font-medium text-white truncate">{displayUsername}</p>
                           <p className="text-xs text-gray-500 truncate">{member.profiles?.email}</p>
                         </div>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
-                          {member.role}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-700 text-gray-300">
+                            {member.role}
+                          </span>
+                          {!isCurrentUser && (
+                            <div className="relative">
+                              <button 
+                                className="p-1 rounded hover:bg-gray-700"
+                                onClick={() => {
+                                  // Show dropdown menu for block/report options
+                                  const dropdown = document.getElementById(`dropdown-${member.user_id}`);
+                                  if (dropdown) {
+                                    dropdown.classList.toggle('hidden');
+                                  }
+                                }}
+                              >
+                                <MoreVertical size={14} />
+                              </button>
+                              <div 
+                                id={`dropdown-${member.user_id}`}
+                                className="hidden absolute right-0 mt-1 w-40 bg-gray-800 border border-gray-700 rounded-lg shadow-lg z-10"
+                              >
+                                <div className="py-1">
+                                  <button 
+                                    className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-900/50 hover:text-red-400"
+                                    onClick={async () => {
+                                      if (communityDb && user) {
+                                        try {
+                                          await communityDb.blockUser(user.id, member.user_id);
+                                          setToastMessage('User blocked successfully');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        } catch (error) {
+                                          console.error('Error blocking user:', error);
+                                          setToastMessage('Failed to block user');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Block User
+                                  </button>
+                                  <button 
+                                    className="block w-full text-left px-4 py-2 text-sm text-orange-500 hover:bg-orange-900/50 hover:text-orange-400"
+                                    onClick={async () => {
+                                      // Prompt for report reason
+                                      const reason = prompt('Enter reason for reporting this user:');
+                                      if (reason && communityDb && user) {
+                                        try {
+                                          await communityDb.reportUser(user.id, member.user_id, reason);
+                                          setToastMessage('User reported successfully');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        } catch (error) {
+                                          console.error('Error reporting user:', error);
+                                          setToastMessage('Failed to report user');
+                                          setShowToast(true);
+                                          setTimeout(() => setShowToast(false), 3000);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Report User
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { initAuthListener } from '@/lib/authListener';
 import { ensureProfile } from '@/lib/ensureProfile';
 
@@ -20,6 +20,8 @@ interface UserState {
   profileLoading: boolean;
   error: string | null;
   profile: any | null;
+  authStatus: 'online' | 'offline' | 'checking';
+  offlineRetryCount: number;
 }
 
 type Action =
@@ -29,6 +31,9 @@ type Action =
   | { type: 'SET_PROFILE_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_PROFILE'; payload: any | null }
+  | { type: 'SET_AUTH_STATUS'; payload: 'online' | 'offline' | 'checking' }
+  | { type: 'INCREMENT_OFFLINE_RETRY' }
+  | { type: 'RESET_OFFLINE_RETRY' }
   | { type: 'RESET' };
 
 const initialState: UserState = {
@@ -38,6 +43,8 @@ const initialState: UserState = {
   profileLoading: false,
   error: null,
   profile: null,
+  authStatus: 'checking',
+  offlineRetryCount: 0,
 };
 
 const AuthContext = createContext<{ state: UserState; dispatch: React.Dispatch<Action>; } | null>(null);
@@ -56,6 +63,12 @@ const authReducer = (state: UserState, action: Action): UserState => {
       return { ...state, error: action.payload };
     case 'SET_PROFILE':
       return { ...state, profile: action.payload };
+    case 'SET_AUTH_STATUS':
+      return { ...state, authStatus: action.payload };
+    case 'INCREMENT_OFFLINE_RETRY':
+      return { ...state, offlineRetryCount: state.offlineRetryCount + 1 };
+    case 'RESET_OFFLINE_RETRY':
+      return { ...state, offlineRetryCount: 0 };
     case 'RESET':
       return { ...initialState };
     default:
@@ -69,40 +82,142 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const broadcastListenerRef = useRef<(() => void) | null>(null);
   const handlingAuthEventRef = useRef(false); // Prevent duplicate auth event handling
   const handledEventRef = useRef<{type: string, userId?: string, ts: number} | null>(null); // Moved to top level
+  
+  // Offline retry management with refs
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initInFlightRef = useRef(false);
 
   // Initialize auth state on mount
   useEffect(() => {
-    const initializeAuth = async () => {
-      console.log('AUTH INIT start');
+    let retryTimeoutId: NodeJS.Timeout | null = null;
+    let isMounted = true;
+    
+    const initializeAuth = async (isRetry = false) => {
+      // Prevent concurrent initialization
+      if (initInFlightRef.current) {
+        console.log('[AUTH] init already in flight, skipping');
+        return;
+      }
+      
+      if (!isMounted) return;
+      
+      initInFlightRef.current = true;
+      
+      console.log('[AUTH] init start', { 
+        isRetry, 
+        retryCount: retryCountRef.current,
+        timestamp: new Date().toISOString()
+      });
+      
       try {
-        console.log('AuthProvider: Initializing auth state');
+        // Check reachability FIRST before creating any client
+        console.log('[AUTH] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+        const { testSupabaseReachability } = await import('@/lib/supabase');
+        const reachability = await testSupabaseReachability(process.env.NEXT_PUBLIC_SUPABASE_URL!, 3000);
         
-        // Call supabase.auth.getSession() with timeout 10s
-        const { data: { session } } = await withTimeout(
+        console.log('[AUTH] reachability result', reachability);
+        
+        if (!reachability.ok) {
+          // Mark as offline BEFORE any client creation
+          dispatch({ type: 'SET_AUTH_STATUS', payload: 'offline' });
+          dispatch({ type: 'SET_ERROR', payload: `Auth offline: ${reachability.error || 'Cannot reach Supabase'}` });
+          dispatch({ type: 'SET_AUTH_LOADING', payload: false });
+          
+          // Schedule retry with exponential backoff (max 5 retries)
+          if (retryCountRef.current < 5) {
+            retryCountRef.current += 1;
+            const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), 10000); // Max 10s
+            console.log('[AUTH] offline retry scheduled', { 
+              attempt: retryCountRef.current, 
+              delay,
+              nextRetry: new Date(Date.now() + delay).toISOString()
+            });
+            
+            // Clear existing timer first
+            if (retryTimerRef.current) {
+              clearTimeout(retryTimerRef.current);
+            }
+            
+            retryTimerRef.current = setTimeout(() => {
+              if (isMounted) {
+                initInFlightRef.current = false; // Reset before retry
+                initializeAuth(true);
+              }
+            }, delay);
+          } else {
+            console.log('[AUTH] max retry attempts reached, staying offline permanently');
+            dispatch({ type: 'SET_ERROR', payload: 'Auth permanently offline: Maximum retry attempts exceeded' });
+          }
+          
+          initInFlightRef.current = false;
+          return;
+        }
+        
+        // Online - proceed with auth
+        dispatch({ type: 'SET_AUTH_STATUS', payload: 'online' });
+        retryCountRef.current = 0; // Reset retry count on successful connection
+        
+        console.log('[AUTH] getSession start');
+        
+        // Get client only when online
+        const supabase = getSupabaseClient();
+        
+        // Call supabase.auth.getSession() with timeout 5s
+        const sessionResponse: any = await withTimeout(
           supabase.auth.getSession(),
-          10000,
+          5000,
           'getSession'
         );
+        const { data: { session }, error } = sessionResponse;
+        
+        if (error) {
+          console.error('[AUTH] getSession error', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.split('\n')[0]
+          });
+          dispatch({ type: 'SET_ERROR', payload: `Auth error: ${error.message}` });
+          dispatch({ type: 'SET_AUTH_LOADING', payload: false });
+          return;
+        }
+        
+        console.log('[AUTH] getSession success', { userId: session?.user?.id });
         
         // Set user/session from result
         if (session) {
-          console.log('AuthProvider: Session found, setting user and session');
           dispatch({ type: 'SET_USER', payload: session.user });
           dispatch({ type: 'SET_SESSION', payload: session });
           
           // Kick off profile load in background (do not block authLoading)
-          console.log('AuthProvider: Kicking off profile load in background');
+          console.log('[AUTH] kicking off profile load');
           void loadProfile(session.user);
         } else {
-          console.log('AuthProvider: No session found');
+          console.log('[AUTH] no session found');
         }
         
-        // Set authLoading=false ALWAYS in finally
+        // Set authLoading=false ALWAYS
         dispatch({ type: 'SET_AUTH_LOADING', payload: false });
-      } catch (error) {
-        console.error('AuthProvider: Error initializing auth:', error);
-        dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
+        
+      } catch (error: any) {
+        console.error('[AUTH] init failed', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n')[0]
+        });
+        
+        // Check for network/DNS errors specifically
+        if (error.message.includes('Failed to fetch') || error.message.includes('ERR_NAME_NOT_RESOLVED')) {
+          dispatch({ type: 'SET_AUTH_STATUS', payload: 'offline' });
+          dispatch({ type: 'SET_ERROR', payload: 'Network error: Cannot connect to authentication service. Check your internet connection and Supabase configuration.' });
+        } else {
+          dispatch({ type: 'SET_ERROR', payload: `Auth initialization failed: ${error.message}` });
+        }
+        
         dispatch({ type: 'SET_AUTH_LOADING', payload: false });
+      } finally {
+        // Always reset the init flag
+        initInFlightRef.current = false;
       }
     };
     
@@ -118,6 +233,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => reject(new Error('Timeout: ensureProfile')), 10000);
         });
+        
+        // Get client for profile loading
+        const supabase = getSupabaseClient();
         
         // Race the ensureProfile call against the timeout
         const profile = await Promise.race([
@@ -151,9 +269,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     broadcastListenerRef.current = initAuthListener(dispatch);
 
     // Listen for auth state changes
+    const supabase = getSupabaseClient();
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('onAuthStateChange event type:', event, 'User ID:', session?.user?.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+      if (!isMounted) return;
+      
+      console.log('[AUTH] listener event', { 
+        type: event, 
+        userId: session?.user?.id,
+        timestamp: new Date().toISOString()
+      });
       
       // Guard duplicate events using a ref
       const currentUserId = session?.user?.id;
@@ -252,7 +377,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Clean up on unmount
     return () => {
-      console.log('AuthProvider: Cleaning up auth subscription');
+      isMounted = false;
+      initInFlightRef.current = false;
+      
+      // Clear any pending retry timeouts
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+        console.log('[AUTH] cleanup: cleared retry timer');
+      }
+      
+      console.log('[AUTH] cleaning up auth subscription');
       if (authSubscriptionRef.current) {
         authSubscriptionRef.current.unsubscribe?.();
         authSubscriptionRef.current = null;
@@ -263,6 +398,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         broadcastListenerRef.current();
         broadcastListenerRef.current = null;
       }
+      
+      // Reset retry count on unmount
+      retryCountRef.current = 0;
+      console.log('[AUTH] cleanup: reset retry count');
     };
   }, []);
 

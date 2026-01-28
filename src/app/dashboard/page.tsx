@@ -25,7 +25,7 @@ const DashboardPage = () => {
   });
   const [continueLearningItems, setContinueLearningItems] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  // Removed tab state since we're keeping dashboard as single view
 
   const didRun = useRef(false)
 
@@ -178,7 +178,7 @@ const DashboardPage = () => {
     }
   };
 
-  // Determine if user is admin or teacher to show admin tab
+  // Admin access check (keeping for potential future use)
   const isAdminOrTeacher = profile && (profile.role === 'admin' || profile.role === 'teacher');
   
   // Stats for dashboard
@@ -230,26 +230,8 @@ const DashboardPage = () => {
             })}
           </div>
 
-          {/* Navigation Tabs */}
-          <div className="flex space-x-1 mb-8 bg-gray-800 p-1 rounded-lg w-fit">
-            <button 
-              onClick={() => setActiveTab('dashboard')} 
-              className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'dashboard' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
-            >
-              Dashboard
-            </button>
-            {isAdminOrTeacher && (
-              <button 
-                onClick={() => setActiveTab('admin')} 
-                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'admin' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
-              >
-                Admin
-              </button>
-            )}
-          </div>
-          
-          {activeTab === 'dashboard' && (
-            <>
+          {/* Main Dashboard Content */}
+          <>
               {/* Continue Learning Section */}
               <div className="card p-6 border border-card-border mb-8">
                 <div className="flex justify-between items-center mb-4">
@@ -327,15 +309,9 @@ const DashboardPage = () => {
                   )}
                 </div>
               </div>
-            </>
-          )}
+          </>
           
-          {activeTab === 'admin' && isAdminOrTeacher && (
-            <div className="card p-6 border border-card-border">
-              <h2 className="text-xl font-bold text-white mb-4">Admin Panel</h2>
-              <p className="text-gray-400">Admin tools coming soon. Create courses, modules, and manage content.</p>
-            </div>
-          )}
+          {/* Admin panel is accessible separately at /admin */}
         </div>
       </AppShell>
     </ProtectedRoute>

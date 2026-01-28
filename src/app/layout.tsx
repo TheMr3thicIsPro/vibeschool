@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vibe School - Learn AI Coding",
-  description: "A futuristic platform to learn how to prompt engineer and vibe code using AI",
+  title: "Vibe School",
+  description: "Vibe Coding School is a modern learning platform where you master prompt engineering and AI-powered coding through real projects, guided lessons, and an active builder community.",
 };
 
 export default function RootLayout({
@@ -29,10 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <div className="cyber-grid"></div>
         <AuthProvider>
-          <PageTransitionWrapper>
-            {children}
-          </PageTransitionWrapper>
+          {children}
         </AuthProvider>
       </body>
     </html>

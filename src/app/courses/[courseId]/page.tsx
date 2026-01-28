@@ -159,9 +159,9 @@ const CourseDetailPage = () => {
               <BookOpen size={48} className="text-gray-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-white mb-2">Course Not Found</h2>
               <p className="text-gray-400">This course doesn't exist or isn't published yet.</p>
-              <button 
+              <button
                 onClick={() => router.push('/courses')}
-                className="mt-4 px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90"
+                className="mt-4 px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 hover-lift"
               >
                 Browse All Courses
               </button>
@@ -217,7 +217,7 @@ const CourseDetailPage = () => {
                   {progressPercent > 0 && resumeLesson ? (
                     <button
                       onClick={handleResumeCourse}
-                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium"
+                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
                     >
                       <Play size={20} />
                       Resume Course
@@ -225,7 +225,7 @@ const CourseDetailPage = () => {
                   ) : nextLesson ? (
                     <button
                       onClick={handleStartCourse}
-                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium"
+                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
                     >
                       <Play size={20} />
                       Start Course
@@ -234,7 +234,7 @@ const CourseDetailPage = () => {
                   
                   <button
                     onClick={() => router.push('/courses')}
-                    className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
+                    className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium hover-lift"
                   >
                     Browse Courses
                   </button>

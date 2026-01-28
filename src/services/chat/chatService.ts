@@ -80,7 +80,7 @@ export const getUserConversations = async (userId: string) => {
   }
 
   // Get the conversation IDs
-  const conversationIds = memberData.map(m => m.conversation_id);
+  const conversationIds = memberData.map((m: any) => m.conversation_id);
 
   // Now fetch the conversations
   const { data, error } = await supabase
@@ -318,7 +318,7 @@ export const subscribeToConversation = (
         table: 'messages',
         filter: `conversation_id=eq.${conversationId}`,
       },
-      (payload) => {
+      (payload: any) => {
         console.log('subscribeToConversation: Received new message via Realtime:', payload);
         callback(payload);
       }
@@ -351,7 +351,7 @@ export function subscribeToMessages(
         table: 'messages', 
         filter: `conversation_id=eq.${conversationId}` 
       },
-      async (payload) => {
+      async (payload: any) => {
         console.log('subscribeToMessages: Received new message via realtime:', payload);
         const msg = payload.new;
         
@@ -387,7 +387,7 @@ export function subscribeToMessages(
         }
       }
     )
-    .subscribe((status, err) => {
+    .subscribe((status: any, err: any) => {
       console.log('subscribeToMessages: Subscription status:', status);
       if (status === 'CLOSED' && intentionalClose) return;
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') onStatus?.('CHANNEL_ERROR', err);

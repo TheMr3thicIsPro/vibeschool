@@ -143,7 +143,7 @@ export const getUserCourseProgress = async (userId: string, courseId: string) =>
     return [];
   }
 
-  const moduleIds = modulesData.map(module => module.id);
+  const moduleIds = modulesData.map((module: any) => module.id);
 
   // Then get all lesson IDs for those modules
   const { data: lessonsData, error: lessonsError } = await supabase
@@ -161,7 +161,7 @@ export const getUserCourseProgress = async (userId: string, courseId: string) =>
     return [];
   }
 
-  const lessonIds = lessonsData.map(lesson => lesson.id);
+  const lessonIds = lessonsData.map((lesson: any) => lesson.id);
 
   // Then get progress for those lessons
   const { data, error } = await supabase

@@ -1,55 +1,103 @@
-import Link from 'next/link';
-import { FallingText } from '@/components/ui/FallingText';
-import Galaxy from '@/components/ui/Galaxy';
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Navbar from '@/components/landing/Navbar';
+import Hero from '@/components/landing/Hero';
+import TrustStrip from '@/components/landing/TrustStrip';
+import Features from '@/components/landing/Features';
+import OpportunityScroll from '@/components/landing/OpportunityScroll';
+import LearningPath from '@/components/landing/LearningPath';
+import Pricing from '@/components/landing/Pricing';
+import Community from '@/components/landing/Community';
+import FinalCTA from '@/components/landing/FinalCTA';
+
+import '@/styles/landing.css';
+
+export default function LandingPage() {
+  const [activeSection, setActiveSection] = useState('hero');
+
+  useEffect(() => {
+    // Debug logs for scroll functionality
+    if (process.env.NODE_ENV === 'development') {
+      const root = document.documentElement;
+      const body = document.body;
+      
+      console.log("=== SCROLL DEBUG STARTUP ===");
+      console.log("HTML overflow:", getComputedStyle(root).overflow);
+      console.log("Body overflow:", getComputedStyle(body).overflow);
+      console.log("Body height:", body.scrollHeight, "vs", window.innerHeight);
+      console.log("Window dimensions:", window.innerWidth, "x", window.innerHeight);
+      
+      // Check for features section
+      const features = document.getElementById("features");
+      console.log("Features element exists:", !!features);
+      if (features) {
+        console.log("Features position:", features.getBoundingClientRect());
+        console.log("Features offsetTop:", features.offsetTop);
+      }
+      
+      // Check for potential blockers
+      const blockerTop = document.elementFromPoint(window.innerWidth/2, 10);
+      const blockerBottom = document.elementFromPoint(window.innerWidth/2, window.innerHeight-10);
+      console.log("Element at top center:", blockerTop?.tagName, blockerTop?.className);
+      console.log("Element at bottom center:", blockerBottom?.tagName, blockerBottom?.className);
+      
+      // Check for any fixed/absolute elements
+      const fixedElements = document.querySelectorAll('*[style*="position: fixed"], *[style*="position: absolute"]');
+      console.log("Fixed/Absolute elements found:", fixedElements.length);
+      
+      console.log("=== SCROLL DEBUG END ===");
+    }
+    
+    const handleScroll = () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log("Scroll event fired, position:", window.scrollY);
+      }
+      
+      const sections = ['hero', 'features', 'opportunity', 'learn', 'pricing', 'community', 'cta'];
+      const scrollPosition = window.scrollY + 100;
+
+      for (const section of sections) {
+        const element = document.getElementById(section);
+        if (element) {
+          const { offsetTop, offsetHeight } = element;
+          if (scrollPosition >= offsetTop && scrollPosition < offsetTop + offsetHeight) {
+            if (process.env.NODE_ENV === 'development' && activeSection !== section) {
+              console.log("Active section changed to:", section);
+            }
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [activeSection]);
+
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-background font-sans">
-      <Galaxy 
-        density={1.5}
-        glowIntensity={0.5}
-        saturation={0.8}
-        hueShift={240}
-        className="absolute inset-0 z-0"
-      />
-      <div className="flex min-h-screen items-center justify-center relative z-10">
-        <main className="flex min-h-screen w-full max-w-4xl flex-col items-center justify-center p-8 bg-background/80 text-foreground">
-          <div className="text-center max-w-2xl">
-            <FallingText delay={0.2} className="text-5xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-[#00f3ff] to-[#b36cff]">
-              Vibe School
-            </FallingText>
-            <FallingText delay={0.4} className="text-2xl text-gray-300 mb-8">
-              Learn how to build with AI, not just talk about it.
-            </FallingText>
-            
-            <FallingText delay={0.6} className="text-lg text-gray-300 mb-12 max-w-xl mx-auto p-6 rounded-xl border border-[#00f3ff]/30 backdrop-blur-sm bg-background/30">
-              Vibe Coding School is a modern learning platform where you master prompt engineering and AI-powered coding through
-              real projects, guided lessons, and an active builder community.
-            </FallingText>
-            
-            <FallingText delay={0.8} className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link 
-                href="/auth/login"
-                className="px-8 py-4 bg-[#00f3ff] text-black font-bold rounded-lg hover:bg-[#00c0cc] transition-colors text-lg hover-lift"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/auth/signup"
-                className="px-8 py-4 bg-transparent border-2 border-[#00f3ff] text-[#00f3ff] font-bold rounded-lg hover:bg-[#00f3ff]/10 transition-colors text-lg hover-lift"
-              >
-                Sign Up
-              </Link>
-            </FallingText>
-            
-            <FallingText delay={1} className="mt-16 pt-8 border-t border-gray-800">
-              <p className="text-gray-500 text-sm">
-                First 2 lessons are free • $1.99 AUD/month or $7.99 AUD lifetime access
-              </p>
-            </FallingText>
-          </div>
-        </main>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white overflow-x-hidden">
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 noise-bg"></div>
       </div>
+      
+      <Navbar activeSection={activeSection} />
+      <Hero />
+      <TrustStrip />
+      <Features />
+      <OpportunityScroll />
+      <LearningPath />
+      <Pricing />
+      <Community />
+      <FinalCTA />
+      
+      {process.env.NODE_ENV === "development" && (
+        <div style={{position:"fixed", bottom:8, right:8, zIndex:9999, fontSize:12, background:"#000", color:"#fff", padding:"6px 8px", border:"1px solid rgba(255,255,255,0.2)", borderRadius:8}}>
+          scrollY: {typeof window !== "undefined" ? Math.round(window.scrollY) : 0}
+        </div>
+      )}
     </div>
   );
 }

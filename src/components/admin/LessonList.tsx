@@ -63,7 +63,7 @@ const SortableLessonItem = ({
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 mt-0.5"
+            className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-gray-300 mt-0.5 hover-lift"
             onClick={(e) => e.stopPropagation()}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -102,7 +102,7 @@ const SortableLessonItem = ({
               e.stopPropagation();
               onEdit(lesson);
             }}
-            className="p-1 rounded text-blue-400 hover:bg-blue-900/20 flex-shrink-0"
+            className="p-1 rounded text-blue-400 hover:bg-blue-900/20 flex-shrink-0 hover-lift"
             title="Edit"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -114,7 +114,7 @@ const SortableLessonItem = ({
               e.stopPropagation();
               onDelete(lesson.id);
             }}
-            className="p-1 rounded text-red-400 hover:bg-red-900/20 flex-shrink-0"
+            className="p-1 rounded text-red-400 hover:bg-red-900/20 flex-shrink-0 hover-lift"
             title="Delete"
           >
             <TrashIcon size={14} />
