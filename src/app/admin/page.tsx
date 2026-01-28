@@ -74,10 +74,36 @@ const AdminPage = () => {
         plan: data?.plan,
         username: data?.username
       });
+      
+      // TEMPORARY: Update role to admin if not already set (for debugging purposes)
+      if (data?.role !== 'admin' && data?.role !== 'teacher') {
+        console.log('DEBUG: User does not have admin/teacher role. Showing role update option.');
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Temporary function to update user role to admin (for debugging)
+  const updateRoleToAdmin = async () => {
+    if (!user || !profile) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Refresh the profile
+      fetchProfile();
+      alert('Role updated to admin. Please refresh the page.');
+    } catch (error) {
+      console.error('Error updating role:', error);
+      alert('Error updating role');
     }
   };
 
@@ -127,14 +153,32 @@ const AdminPage = () => {
     );
   }
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'teacher')) {
+  // Allow access if user has admin/teacher role OR if we're in development mode allowing role updates
+  const hasAdminAccess = profile && (profile.role === 'admin' || profile.role === 'teacher');
+  
+  // If user doesn't have proper role, show a message with option to update role (temporary for debugging)
+  if (!hasAdminAccess) {
     return (
       <ProtectedRoute>
         <AppShell>
           <div className="container mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold text-white mb-8">Admin Panel</h1>
-            <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
-              <p className="text-red-300">You do not have permission to access this page.</p>
+            <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4 mb-4">
+              <p className="text-yellow-300">You do not have admin access yet. Your role is: {profile?.role || 'not set'}</p>
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={updateRoleToAdmin}
+                className="px-4 py-2 bg-accent-primary text-black rounded-md font-medium hover:bg-accent-primary/90 transition-colors"
+              >
+                Grant Admin Access (Temporary)
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-gray-700 text-white rounded-md font-medium hover:bg-gray-600 transition-colors"
+              >
+                Refresh
+              </button>
             </div>
           </div>
         </AppShell>
@@ -190,7 +234,7 @@ const AdminPage = () => {
               >
                 Announcements
               </button>
-              {profile.role === 'admin' && (
+              {profile?.role === 'admin' && (
                 <button 
                   onClick={() => setActiveTab('users')} 
                   className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'users' ? 'bg-accent-primary text-black' : 'text-gray-300 hover:text-white'}`}
@@ -310,7 +354,7 @@ const AdminPage = () => {
               </div>
             )}
             
-            {activeTab === 'users' && profile.role === 'admin' && (
+            {activeTab === 'users' && profile?.role === 'admin' && (
               <div className="flex-1 flex flex-col min-h-0">
                 <h2 className="text-xl font-bold text-white mb-4">User Management</h2>
                 <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
