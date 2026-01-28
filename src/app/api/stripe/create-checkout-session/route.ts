@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-});
+import { getStripeServerClient } from '@/lib/stripe/client';
 
 // Price IDs - you'll need to create these in your Stripe dashboard
 const PRICE_IDS = {
@@ -11,8 +7,31 @@ const PRICE_IDS = {
   recurring: 'price_00w8wP0NB2ercX029peAg01'
 };
 
+console.log('[STRIPE] Initializing create-checkout-session route');
+
 export async function POST(request: NextRequest) {
+  console.log('[STRIPE] create-checkout-session called', { 
+    hasSecret: !!process.env.STRIPE_SECRET_KEY,
+    timestamp: new Date().toISOString()
+  });
+
   try {
+    // Get Stripe client with error handling
+    const { client, error } = getStripeServerClient();
+    
+    if (error) {
+      console.log('[STRIPE] create-checkout-session - returning config error');
+      return error;
+    }
+
+    if (!client) {
+      console.error('[STRIPE] create-checkout-session - No client available');
+      return NextResponse.json(
+        { error: 'Stripe client not available' },
+        { status: 500 }
+      );
+    }
+
     const { userId, userEmail, planType } = await request.json();
 
     if (!userId || !userEmail || !planType) {
@@ -42,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const session = await client.checkout.sessions.create({
       customer_email: userEmail,
       payment_method_types: ['card'],
       line_items: priceId.map((price: string) => ({
@@ -66,9 +85,11 @@ export async function POST(request: NextRequest) {
       } : undefined,
     });
 
+    console.log('[STRIPE] Checkout session created successfully', { sessionId: session.id });
+
     return NextResponse.json({ sessionId: session.id });
   } catch (error: any) {
-    console.error('Error creating checkout session:', error);
+    console.error('[STRIPE] Error creating checkout session:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

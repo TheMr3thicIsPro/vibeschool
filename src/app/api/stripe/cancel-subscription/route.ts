@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { getStripeServerClient } from '@/lib/stripe/client';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-});
+console.log('[STRIPE] Initializing cancel-subscription route');
 
 export async function POST(request: NextRequest) {
+  console.log('[STRIPE] cancel-subscription called', { 
+    hasSecret: !!process.env.STRIPE_SECRET_KEY,
+    timestamp: new Date().toISOString()
+  });
+
   try {
+    // Get Stripe client with error handling
+    const { client, error } = getStripeServerClient();
+    
+    if (error) {
+      console.log('[STRIPE] cancel-subscription - returning config error');
+      return error;
+    }
+
+    if (!client) {
+      console.error('[STRIPE] cancel-subscription - No client available');
+      return NextResponse.json(
+        { error: 'Stripe client not available' },
+        { status: 500 }
+      );
+    }
+
     const { subscriptionId } = await request.json();
 
     if (!subscriptionId) {
@@ -17,7 +36,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Cancel the subscription
-    const subscription = await stripe.subscriptions.cancel(subscriptionId);
+    const subscription = await client.subscriptions.cancel(subscriptionId);
+
+    console.log('[STRIPE] Subscription canceled successfully', { 
+      id: subscription.id, 
+      status: subscription.status 
+    });
 
     return NextResponse.json({
       id: subscription.id,
@@ -25,7 +49,7 @@ export async function POST(request: NextRequest) {
       canceled_at: subscription.canceled_at,
     });
   } catch (error: any) {
-    console.error('Error canceling subscription:', error);
+    console.error('[STRIPE] Error canceling subscription:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }

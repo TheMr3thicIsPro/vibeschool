@@ -1,9 +1,9 @@
-import { loadStripe } from '@stripe/stripe-js';
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import { supabase } from '@/lib/supabase';
 import { createPurchase } from '@/services/payment/paymentService';
 
 // Make sure to call this in a client component
-let stripePromise: Promise<any> | null = null;
+let stripePromise: Promise<Stripe | null> | null = null;
 
 export const getStripe = () => {
   if (!stripePromise) {

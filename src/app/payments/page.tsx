@@ -91,6 +91,12 @@ const PaymentsPage = () => {
       
       // Redirect to Stripe checkout
       const stripe = await getStripe();
+      if (!stripe) {
+        console.error('Stripe failed to initialize');
+        alert('Stripe is not available. Please try again later.');
+        return;
+      }
+      
       const result = await stripe.redirectToCheckout({
         sessionId: session.sessionId
       });

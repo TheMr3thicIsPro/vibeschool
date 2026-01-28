@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
+import { getStripeServerClient } from '@/lib/stripe/client';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-});
+console.log('[STRIPE] Initializing session route');
 
 export async function GET(request: NextRequest) {
+  console.log('[STRIPE] session GET called', { 
+    hasSecret: !!process.env.STRIPE_SECRET_KEY,
+    timestamp: new Date().toISOString()
+  });
+
   try {
+    // Get Stripe client with error handling
+    const { client, error } = getStripeServerClient();
+    
+    if (error) {
+      console.log('[STRIPE] session - returning config error');
+      return error;
+    }
+
+    if (!client) {
+      console.error('[STRIPE] session - No client available');
+      return NextResponse.json(
+        { error: 'Stripe client not available' },
+        { status: 500 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('session_id');
 
@@ -17,7 +36,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const session = await client.checkout.sessions.retrieve(sessionId);
+
+    console.log('[STRIPE] Session retrieved successfully', { sessionId: session.id });
 
     return NextResponse.json({
       id: session.id,
@@ -30,7 +51,7 @@ export async function GET(request: NextRequest) {
       planType: session.metadata?.planType,
     });
   } catch (error: any) {
-    console.error('Error retrieving session:', error);
+    console.error('[STRIPE] Error retrieving session:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
       { status: 500 }
