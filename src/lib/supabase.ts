@@ -48,24 +48,28 @@ export async function testSupabaseReachability(url: string, timeoutMs = 3000): P
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   
   try {
-    const healthUrl = url.replace('.supabase.co', '.supabase.co/auth/v1/health');
-    const res = await fetch(healthUrl, { 
+    // Test the base URL instead of health endpoint since health returns 401 without auth
+    const testUrl = `${url}/rest/v1/`; // This should return 401 but indicate the server is reachable
+    const res = await fetch(testUrl, { 
       cache: 'no-store',
       signal: controller.signal,
-      method: 'GET'
+      method: 'HEAD' // Use HEAD to minimize data transfer
     });
     
     clearTimeout(timeoutId);
     
     console.log('[AUTH] reachability result', { 
       status: res.status, 
-      ok: res.ok,
-      url: healthUrl 
+      ok: res.status < 500, // Consider reachable if not 5xx errors
+      url: testUrl 
     });
     
+    // Consider reachable if we get any response (even 401/403) - means server is alive
+    const isReachable = res.status > 0 && res.status < 500;
+    
     return { 
-      ok: res.ok, 
-      error: res.ok ? undefined : `HTTP ${res.status}` 
+      ok: isReachable, 
+      error: isReachable ? undefined : `HTTP ${res.status}` 
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
@@ -74,7 +78,7 @@ export async function testSupabaseReachability(url: string, timeoutMs = 3000): P
       name: error.name,
       message: error.message,
       stack: error.stack?.split('\n')[0],
-      url: url.replace('.supabase.co', '.supabase.co/auth/v1/health')
+      url: `${url}/rest/v1/`
     });
     
     return { 

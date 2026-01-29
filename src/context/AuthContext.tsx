@@ -114,18 +114,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Check reachability FIRST before creating any client
         console.log('[AUTH] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
         const { testSupabaseReachability } = await import('@/lib/supabase');
-        const reachability = await testSupabaseReachability(process.env.NEXT_PUBLIC_SUPABASE_URL!, 3000);
+        const reachability = await testSupabaseReachability(process.env.NEXT_PUBLIC_SUPABASE_URL!, 5000);
         
         console.log('[AUTH] reachability result', reachability);
         
-        if (!reachability.ok) {
+        // Be more lenient with reachability - if we get any response, consider it reachable
+        if (!reachability.ok && reachability.error && !reachability.error.includes('401') && !reachability.error.includes('403')) {
           // Mark as offline BEFORE any client creation
           dispatch({ type: 'SET_AUTH_STATUS', payload: 'offline' });
           dispatch({ type: 'SET_ERROR', payload: `Auth offline: ${reachability.error || 'Cannot reach Supabase'}` });
           dispatch({ type: 'SET_AUTH_LOADING', payload: false });
           
-          // Schedule retry with exponential backoff (max 5 retries)
-          if (retryCountRef.current < 5) {
+          // Schedule retry with exponential backoff (max 10 retries)
+          if (retryCountRef.current < 10) {
             retryCountRef.current += 1;
             const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), 10000); // Max 10s
             console.log('[AUTH] offline retry scheduled', { 
