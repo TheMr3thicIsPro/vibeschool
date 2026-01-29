@@ -150,7 +150,7 @@ const CoursesPage = () => {
                   </div>
                   
                   <button 
-                    className="w-full py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 transition-colors font-medium"
+                    className="w-full py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors font-medium"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCourseClick(course.id);

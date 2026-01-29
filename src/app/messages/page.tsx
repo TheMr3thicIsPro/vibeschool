@@ -287,7 +287,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 onClick={() => setActiveTab('messages')}
                 className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'messages'
-                    ? 'bg-accent-primary text-black'
+                    ? 'bg-accent-primary text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
@@ -297,7 +297,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 onClick={() => setActiveTab('friends')}
                 className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'friends'
-                    ? 'bg-accent-primary text-black'
+                    ? 'bg-accent-primary text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
@@ -307,7 +307,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 onClick={() => setActiveTab('requests')}
                 className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors relative ${
                   activeTab === 'requests'
-                    ? 'bg-accent-primary text-black'
+                    ? 'bg-accent-primary text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
               >
@@ -388,7 +388,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                   <button
                     onClick={() => handleSearchUsers(searchQuery)}
                     disabled={searchLoading}
-                    className="mt-2 w-full py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 disabled:opacity-50"
+                    className="mt-2 w-full py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 disabled:opacity-50"
                   >
                     {searchLoading ? 'Searching...' : 'Search'}
                   </button>
@@ -413,7 +413,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                         </div>
                         <button
                           onClick={() => handleSendFriendRequest(profile.id)}
-                          className="p-2 bg-accent-primary text-black rounded-full hover:bg-accent-primary/90"
+                          className="p-2 bg-accent-primary text-white rounded-full hover:bg-accent-primary/90"
                         >
                           <UserPlusIcon className="w-4 h-4" />
                         </button>
@@ -585,7 +585,7 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                         <div
                           className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                             message.sender_id === user.id
-                              ? 'bg-accent-primary text-black'
+                              ? 'bg-accent-primary text-white'
                               : 'bg-gray-800 text-white'
                           }`}
                         >

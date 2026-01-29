@@ -238,7 +238,7 @@ export const QuizEditor = ({ quiz, onSave, onCancel }: QuizEditorProps) => {
                 <button
                   type="button"
                   onClick={handleAddQuestion}
-                  className="px-3 py-1 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90 hover-lift"
+                  className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90 hover-lift"
                 >
                   Add Question
                 </button>
@@ -397,7 +397,7 @@ export const QuizEditor = ({ quiz, onSave, onCancel }: QuizEditorProps) => {
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-black rounded-md font-medium hover-lift"
+              className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-white rounded-md font-medium hover-lift"
             >
               Save Quiz
             </button>

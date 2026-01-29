@@ -1201,7 +1201,7 @@ const SocialPage = () => {
                           }}
                         />
                         <button 
-                          className="px-3 py-2 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                          className="px-3 py-2 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90"
                           onClick={async () => {
                             if (communityDb && searchUsername.trim()) {
                               setLoadingSearch(true);
@@ -1321,25 +1321,25 @@ const SocialPage = () => {
                   {/* Community Tabs */}
                   <div className="flex space-x-1">
                     <button
-                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'chat' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'chat' ? 'bg-accent-primary text-white' : 'text-gray-400 hover:text-white'}`}
                       onClick={() => setActiveCommunityTab('chat')}
                     >
                       Chat
                     </button>
                     <button
-                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'discover' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'discover' ? 'bg-accent-primary text-white' : 'text-gray-400 hover:text-white'}`}
                       onClick={() => setActiveCommunityTab('discover')}
                     >
                       Discover
                     </button>
                     <button
-                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'friends' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'friends' ? 'bg-accent-primary text-white' : 'text-gray-400 hover:text-white'}`}
                       onClick={() => setActiveCommunityTab('friends')}
                     >
                       Friends
                     </button>
                     <button
-                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'requests' ? 'bg-accent-primary text-black' : 'text-gray-400 hover:text-white'}`}
+                      className={`px-3 py-1 rounded-md text-sm ${activeCommunityTab === 'requests' ? 'bg-accent-primary text-white' : 'text-gray-400 hover:text-white'}`}
                       onClick={() => setActiveCommunityTab('requests')}
                     >
                       Requests
@@ -1494,7 +1494,7 @@ const SocialPage = () => {
                       />
                     </div>
                     <button 
-                      className="px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90"
+                      className="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90"
                       onClick={async () => {
                         if (communityDb && searchUsername.trim()) {
                           setLoadingSearch(true);
@@ -1551,7 +1551,7 @@ const SocialPage = () => {
                                       }
                                     }
                                   }}
-                                  className="px-3 py-1 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                                  className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90"
                                 >
                                   Add Friend
                                 </button>
@@ -1615,7 +1615,7 @@ const SocialPage = () => {
                             }
                           }
                         }}
-                        className="px-4 py-2 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 text-sm"
+                        className="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 text-sm"
                       >
                         Create Group
                       </button>
@@ -1655,7 +1655,7 @@ const SocialPage = () => {
                                     }
                                   }
                                 }}
-                                className="px-3 py-1 bg-accent-primary text-black rounded text-sm hover:bg-accent-primary/90"
+                                className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90"
                               >
                                 Message
                               </button>

@@ -229,7 +229,7 @@ const ModuleList = ({
             disabled={!courseId}
             className={`hover-lift ${
               courseId 
-                ? 'bg-accent-primary hover:bg-accent-primary/90 text-black' 
+                ? 'bg-accent-primary hover:bg-accent-primary/90 text-white'
                 : 'bg-gray-700 text-gray-500 cursor-not-allowed'
             } px-3 py-1 rounded-md text-sm font-medium transition-colors`}
           >

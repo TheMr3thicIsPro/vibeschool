@@ -183,7 +183,7 @@ const PaymentsPage = () => {
                     }`}
                   >
                     {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-accent-primary text-black text-xs font-bold px-4 py-1 rounded-full">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-accent-primary text-white text-xs font-bold px-4 py-1 rounded-full">
                         MOST POPULAR
                       </div>
                     )}

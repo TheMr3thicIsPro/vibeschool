@@ -142,7 +142,7 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleAddFriend(profile.id)}
-                  className="p-2 rounded-full bg-gray-700 hover:bg-accent-primary hover:text-black transition-colors"
+                  className="p-2 rounded-full bg-gray-700 hover:bg-accent-primary hover:text-white transition-colors"
                   title="Add Friend"
                 >
                   <UserPlusIcon className="w-4 h-4" />

@@ -84,7 +84,7 @@ const AnnouncementManager = () => {
           <h3 className="text-lg font-semibold text-white">Announcements</h3>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-accent-primary hover:bg-accent-primary/90 text-black px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift"
+            className="bg-accent-primary hover:bg-accent-primary/90 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift"
           >
             + New
           </button>

@@ -68,7 +68,7 @@ const PaymentSuccessContent = () => {
               </div>
               <button
                 onClick={() => router.push('/payments')}
-                className="px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
+                className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
               >
                 Try Again
               </button>
@@ -105,7 +105,7 @@ const PaymentSuccessContent = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="px-6 py-3 bg-accent-primary text-black rounded-lg hover:bg-accent-primary/90 font-medium hover-lift flex items-center gap-2"
+                className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift flex items-center gap-2"
               >
                 Go to Dashboard
                 <ArrowRight size={18} />
