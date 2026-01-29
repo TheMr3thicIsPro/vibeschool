@@ -79,7 +79,9 @@ const SignupPage = () => {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      console.log('[SIGNUP] Attempting signup for:', email);
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -89,8 +91,11 @@ const SignupPage = () => {
         }
       });
       
+      console.log('[SIGNUP] Response:', { data, error });
+      
       if (error) {
-        setErrorMessage(mapSupabaseAuthError(error));
+        console.error('[SIGNUP] Error details:', error);
+        setErrorMessage(`Signup failed: ${mapSupabaseAuthError(error)} (Code: ${error.code})`);
         return;
       }
 
