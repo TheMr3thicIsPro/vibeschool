@@ -161,7 +161,7 @@ const CourseDetailPage = () => {
               <p className="text-gray-400">This course doesn't exist or isn't published yet.</p>
               <button
                 onClick={() => router.push('/courses')}
-                className="mt-4 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 hover-lift"
+                className="mt-4 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 hover-lift border border-accent-primary"
               >
                 Browse All Courses
               </button>
@@ -217,7 +217,7 @@ const CourseDetailPage = () => {
                   {progressPercent > 0 && resumeLesson ? (
                     <button
                       onClick={handleResumeCourse}
-                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
+                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift border border-accent-primary"
                     >
                       <Play size={20} />
                       Resume Course
@@ -225,7 +225,7 @@ const CourseDetailPage = () => {
                   ) : nextLesson ? (
                     <button
                       onClick={handleStartCourse}
-                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
+                      className="flex items-center gap-2 px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift border border-accent-primary"
                     >
                       <Play size={20} />
                       Start Course

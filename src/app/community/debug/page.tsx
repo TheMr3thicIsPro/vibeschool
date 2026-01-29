@@ -160,7 +160,7 @@ const CommunityDebugPage = () => {
             <div className="flex flex-wrap gap-4">
               <button 
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90"
+                className="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 border border-accent-primary"
               >
                 Refresh Debug Info
               </button>

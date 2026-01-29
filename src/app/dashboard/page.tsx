@@ -265,7 +265,7 @@ const DashboardPage = () => {
                           </div>
                           <span className="text-sm text-gray-400">{item.progress_percent}%</span>
                           <button 
-                            className="ml-4 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors hover-lift"
+                            className="ml-4 px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors hover-lift border border-accent-primary"
                             onClick={(e) => {
                               e.stopPropagation();
                               router.push(`/learn/${item.lesson_id}`);
@@ -283,7 +283,7 @@ const DashboardPage = () => {
                       <p className="text-gray-500 mb-4">Start a course to begin your learning journey!</p>
                       <button 
                         onClick={() => router.push('/courses')}
-                        className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift"
+                        className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 font-medium hover-lift border border-accent-primary"
                       >
                         Browse Courses
                       </button>

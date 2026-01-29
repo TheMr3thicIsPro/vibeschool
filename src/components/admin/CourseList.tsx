@@ -133,7 +133,7 @@ const CourseList = ({
           <h3 className="text-lg font-semibold text-white">Courses</h3>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-accent-primary hover:bg-accent-primary/90 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift"
+            className="bg-accent-primary hover:bg-accent-primary/90 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors hover-lift border border-accent-primary"
           >
             <PlusIcon size={16} />
           </button>

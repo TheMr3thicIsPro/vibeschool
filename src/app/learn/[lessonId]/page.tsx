@@ -388,7 +388,7 @@ const LessonPlayer = () => {
               <p className="text-yellow-400 mt-2">Preview lessons are available for free, but full content requires a membership.</p>
               <button 
                 onClick={() => window.location.href = '/courses'}
-                className="mt-4 px-4 py-2 bg-accent-primary text-white rounded hover:bg-accent-primary/90 hover-lift"
+                className="mt-4 px-4 py-2 bg-accent-primary text-white rounded hover:bg-accent-primary/90 hover-lift border border-accent-primary"
               >
                 Browse Courses
               </button>
@@ -488,7 +488,7 @@ const LessonPlayer = () => {
                   className={`px-4 py-2 rounded hover-lift ${
                     progress.completed 
                       ? 'bg-green-800 text-green-300' 
-                      : 'bg-accent-primary text-white hover:bg-accent-primary/90'
+                      : 'bg-accent-primary text-white hover:bg-accent-primary/90 border border-accent-primary'
                   }`}
                 >
                   {progress.completed ? '✓ Completed' : 'Mark as Complete'}

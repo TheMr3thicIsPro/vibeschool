@@ -152,7 +152,7 @@ export const QuizComponent = ({ lessonId, quiz, onComplete }: QuizComponentProps
       <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
         <button
           onClick={handleSubmit}
-          className="px-8 py-3 bg-accent-primary text-white font-bold rounded-lg hover:bg-accent-primary/90 transition-colors text-lg hover-lift"
+          className="px-8 py-3 bg-accent-primary text-white font-bold rounded-lg hover:bg-accent-primary/90 transition-colors text-lg hover-lift border border-accent-primary"
         >
           Submit Quiz
         </button>

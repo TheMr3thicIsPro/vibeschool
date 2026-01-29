@@ -104,7 +104,7 @@ const FriendRequestTestPage = () => {
             <button
               onClick={handleSendRequest}
               disabled={loading || !toUserId || !user}
-              className="w-full py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 disabled:opacity-50"
+              className="w-full py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 disabled:opacity-50 border border-accent-primary"
             >
               {loading ? 'Sending...' : 'SEND REQUEST'}
             </button>

@@ -317,7 +317,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
                         }
                       }}
                       disabled={!lesson}
-                      className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90 hover-lift disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1 bg-accent-primary text-white rounded text-sm hover:bg-accent-primary/90 hover-lift disabled:opacity-50 disabled:cursor-not-allowed border border-accent-primary"
                     >
                       {quiz ? 'Edit Quiz' : 'Create Quiz'}
                     </button>
@@ -380,7 +380,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
                 type="button"
                 onClick={handleSave}
                 disabled={loading}
-                className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-white rounded-md font-medium disabled:opacity-50 hover-lift"
+                className="px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 text-white rounded-md font-medium disabled:opacity-50 hover-lift border border-accent-primary"
               >
                 {loading ? 'Saving...' : lesson ? 'Update Lesson' : 'Create Lesson'}
               </button>
