@@ -296,12 +296,12 @@ export const getLatestAnnouncements = async (limit = 10) => {
 };
 
 // Get user's profile with role and plan
-export const getUserProfile = async (userId: string): Promise<{ id: string; username: string; full_name: string | null; role: string; plan: string; created_at: string; } | null> => {
+export const getUserProfile = async (userId: string): Promise<{ id: string; username: string; full_name: string | null; role: string; plan: string; created_at: string; trial_started_at: string | null; trial_expires_at: string | null; account_locked: boolean } | null> => {
   console.log('getUserProfile: Fetching profile for user:', userId);
   
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, username, full_name, role, plan, created_at')
+    .select('id, username, full_name, role, plan, created_at, trial_started_at, trial_expires_at, account_locked')
     .eq('id', userId)
     .maybeSingle(); // Use maybeSingle to handle cases where profile doesn't exist yet
 
@@ -391,7 +391,7 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     return { hasAccess: true, isPreview: true };
   }
 
-  // Check if user is a member
+  // Check if user is a member or has a valid trial
   const profile = await getUserProfile(userId);
   
   // If no profile exists, user doesn't have access
@@ -400,8 +400,16 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     return { hasAccess: false, isPreview: false };
   }
   
-  const hasAccess = profile.plan === 'member';
+  // Check if trial has expired for free users
+  let hasAccess = false;
+  if (profile.plan === 'member') {
+    hasAccess = true;
+  } else if (profile.plan === 'free' && profile.trial_expires_at) {
+    const trialExpiresAt = new Date(profile.trial_expires_at);
+    const now = new Date();
+    hasAccess = now < trialExpiresAt;
+  }
   
-  console.log('checkLessonAccess: Member access check result:', { hasAccess, plan: profile.plan });
+  console.log('checkLessonAccess: Trial/membership access check result:', { hasAccess, plan: profile.plan, trialExpiresAt: profile.trial_expires_at });
   return { hasAccess, isPreview: false };
 };

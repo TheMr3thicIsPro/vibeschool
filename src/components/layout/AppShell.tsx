@@ -14,6 +14,7 @@ const AppShell = ({ children }: AppShellProps) => {
   const { state } = useAuthStore();
   const user = state.user;
   const authLoading = state.authLoading;
+  const profile = state.profile;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Show sidebar only when user is authenticated
@@ -27,7 +28,27 @@ const AppShell = ({ children }: AppShellProps) => {
 
   if (!user) {
     // For non-authenticated users, just render children without sidebar
-    return <>{children}</>;
+    return <div>{children}</div>;
+  }
+  
+  // Check if account is locked due to expired trial
+  if (user.account_locked) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-card rounded-xl shadow-lg p-6 text-center">
+          <h2 className="text-2xl font-bold text-red-500 mb-4">Account Locked</h2>
+          <p className="text-foreground mb-4">
+            Your free trial has expired. Please upgrade to a membership to continue accessing the platform.
+          </p>
+          <a 
+            href="/payments"
+            className="px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors font-medium inline-block"
+          >
+            Upgrade to Member
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (

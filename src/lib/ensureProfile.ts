@@ -53,7 +53,10 @@ export async function ensureProfile(
         email: email || null,
         username: usernameFallback,
         role: "student",
-        plan: "free"
+        plan: "free",
+        trial_started_at: new Date().toISOString(),
+        trial_expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), // 72 hours from now
+        account_locked: false
       },
       { onConflict: "id" }
     )

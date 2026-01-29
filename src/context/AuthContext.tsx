@@ -243,14 +243,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           timeoutPromise
         ]);
         
-        dispatch({ type: 'SET_PROFILE', payload: profile });
+        // Check if trial has expired for free users
+        const isTrialExpired = profile?.plan === 'free' && 
+                               profile?.trial_expires_at && 
+                               new Date(profile.trial_expires_at) < new Date();
+        
+        // Update profile with trial status
+        const updatedProfile = {
+          ...profile,
+          isTrialExpired,
+          account_locked: profile?.account_locked || isTrialExpired
+        };
+        
+        dispatch({ type: 'SET_PROFILE', payload: updatedProfile });
         
         // Update user with profile info
         const userWithProfile = {
           ...user,
-          role: profile?.role,
-          plan: profile?.plan,
-          username: profile?.username
+          role: updatedProfile?.role,
+          plan: updatedProfile?.plan,
+          username: updatedProfile?.username,
+          isTrialExpired: updatedProfile?.isTrialExpired,
+          account_locked: updatedProfile?.account_locked
         };
         
         dispatch({ type: 'SET_USER', payload: userWithProfile });
