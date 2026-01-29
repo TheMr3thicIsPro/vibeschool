@@ -55,7 +55,7 @@ export async function ensureProfile(
         role: "student",
         plan: "free",
         trial_started_at: new Date().toISOString(),
-        trial_expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(), // 72 hours from now
+        trial_expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(), // 5 minutes from now
         account_locked: false
       },
       { onConflict: "id" }

@@ -18,7 +18,7 @@ BEGIN
     -- If plan is being changed to 'free' and was not previously 'free', start trial
     ELSIF NEW.plan = 'free' AND COALESCE(OLD.plan, '') != 'free' THEN
         NEW.trial_started_at := COALESCE(NEW.trial_started_at, NOW());
-        NEW.trial_expires_at := NEW.trial_started_at + INTERVAL '72 hours';
+        NEW.trial_expires_at := NEW.trial_started_at + INTERVAL '5 minutes';
         NEW.account_locked := FALSE;
     END IF;
 
@@ -42,8 +42,8 @@ SET
     trial_expires_at = COALESCE(trial_expires_at, 
         CASE 
             WHEN created_at IS NOT NULL 
-            THEN created_at + INTERVAL '72 hours'
-            ELSE NOW() + INTERVAL '72 hours'
+            THEN created_at + INTERVAL '5 minutes'
+            ELSE NOW() + INTERVAL '5 minutes'
         END)
 WHERE plan = 'free' AND trial_expires_at IS NULL;
 
