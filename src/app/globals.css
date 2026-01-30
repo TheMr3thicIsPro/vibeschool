@@ -47,13 +47,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Cyberpunk-inspired styles */
-.neon-text {
-  color: var(--accent-primary);
-  text-shadow: 0 0 5px var(--accent-primary), 0 0 10px var(--accent-primary), 0 0 15px var(--accent-primary);
-  animation: pulse 2s infinite;
-}
-
 .neon-border {
   border: 1px solid var(--accent-primary);
   box-shadow: var(--hover-glow);
