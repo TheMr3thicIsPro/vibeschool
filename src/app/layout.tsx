@@ -1,8 +1,24 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import localFont from 'next/font/local';
+import { Inter } from 'next/font/google';
+import { Space_Grotesk } from 'next/font/google';
 import "./globals.css";
 import { AuthProvider } from '@/context/AuthContext';
 import PageTransitionWrapper from '@/components/layout/PageTransitionWrapper';
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+});
+
+// Using JetBrains Mono instead of JetBrains Sans since it's more commonly available
+import '@fontsource/jetbrains-mono';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +43,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased`}
+        style={{ fontFamily: 'var(--font-inter)' }}
       >
         <div className="cyber-grid"></div>
         <AuthProvider>

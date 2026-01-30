@@ -40,7 +40,7 @@ const ForgotPasswordPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white font-[var(--font-geist-sans)] tracking-wide">Vibe School</h1>
+          <h1 className="text-3xl font-bold text-white font-[var(--font-space-grotesk)] tracking-wide">Vibe School</h1>
           <p className="text-gray-400 mt-2">Learn to prompt engineer and vibe code</p>
         </div>
 
