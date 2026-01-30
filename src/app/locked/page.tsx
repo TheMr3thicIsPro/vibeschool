@@ -30,11 +30,7 @@ const LockedAccountPage = () => {
             Lifetime access: $7.99
           </div>
         </div>
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <Link href="/auth/login" className="text-gray-400 hover:text-accent-primary transition-colors text-sm">
-            Back to Login
-          </Link>
-        </div>
+
       </div>
     </div>
   );
