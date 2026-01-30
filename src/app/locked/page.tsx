@@ -11,9 +11,12 @@ const LockedAccountPage = () => {
           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Lock className="w-8 h-8 text-red-500" />
           </div>
-          <h1 className="text-3xl font-bold text-red-500 mb-2">Account Locked</h1>
+          <h1 className="text-3xl font-bold text-red-500 mb-2">Trial ended</h1>
           <p className="text-foreground mb-4">
-            Your free trial has expired. Please upgrade to continue.
+            Your free trial has wrapped up, but you’re just getting started.
+          </p>
+          <p className="text-foreground mb-4">
+            Upgrade anytime to keep learning and unlock the full VibeSchool experience.
           </p>
         </div>
         <div className="space-y-4">
