@@ -24,7 +24,7 @@ const LockedAccountPage = () => {
             href="/payments"
             className="w-full px-6 py-3 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 transition-colors font-medium inline-block text-center hover-lift border border-accent-primary"
           >
-            Upgrade - $1.99/month
+            Upgrade - $1.99 first month, then $7.99/month
           </Link>
           <div className="text-sm text-gray-400">
             Lifetime access: $7.99
