@@ -28,20 +28,30 @@ const TrialTimer = () => {
         return;
       }
 
-      const minutes = Math.floor(difference / (1000 * 60));
+      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
-      if (minutes < 5) {
+      if (days === 0 && hours === 0 && minutes < 5) {
         setIsExpiringSoon(true);
       } else {
         setIsExpiringSoon(false);
       }
 
-      if (minutes > 0) {
-        setTimeLeft(`${minutes}m ${seconds}s`);
-      } else {
-        setTimeLeft(`${seconds}s`);
+      let timeString = '';
+      if (days > 0) {
+        timeString += `${days}d `;
       }
+      if (hours > 0) {
+        timeString += `${hours}h `;
+      }
+      if (minutes > 0) {
+        timeString += `${minutes}m `;
+      }
+      timeString += `${seconds}s`;
+      
+      setTimeLeft(timeString);
     };
 
     // Calculate immediately
