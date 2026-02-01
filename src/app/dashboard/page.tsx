@@ -37,6 +37,17 @@ const DashboardPage = () => {
   console.debug('[Dashboard] didRun ref initialized:', didRun.current);
 
   useEffect(() => {
+    // BUILD-TIME GUARD: Skip data loading during static build
+    if (typeof window === 'undefined') {
+      console.debug('[Dashboard] BUILD-DEBUG: Skipping data load during build time - window undefined');
+      console.debug('[Dashboard] BUILD-DEBUG: Setting loading to false for static render');
+      setLoading(false);
+      console.debug('[Dashboard] BUILD-DEBUG: Data load skipped successfully');
+      return;
+    }
+      
+    console.debug('[Dashboard] BUILD-DEBUG: Starting data loading - window available');
+    
     console.debug('[Dashboard] useEffect triggered');
     console.debug('[Dashboard] user in effect:', user ? { id: user.id } : 'no user');
     console.debug('[Dashboard] didRun.current before check:', didRun.current);

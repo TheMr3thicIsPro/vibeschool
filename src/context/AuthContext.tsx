@@ -90,6 +90,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize auth state on mount
   useEffect(() => {
+    // BUILD-TIME GUARD: Skip auth initialization during static build
+    if (typeof window === 'undefined') {
+      console.log('[AUTH] BUILD-DEBUG: Skipping auth init during build time - window undefined');
+      console.log('[AUTH] BUILD-DEBUG: Setting authLoading to false for static render');
+      dispatch({ type: 'SET_AUTH_LOADING', payload: false });
+      console.log('[AUTH] BUILD-DEBUG: Auth init skipped successfully');
+      return;
+    }
+    
+    console.log('[AUTH] BUILD-DEBUG: Starting auth initialization - window available');
+    
     let retryTimeoutId: NodeJS.Timeout | null = null;
     let isMounted = true;
     

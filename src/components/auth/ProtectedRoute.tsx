@@ -9,6 +9,12 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  // BUILD-TIME GUARD: Skip auth checks during static build
+  if (typeof window === 'undefined') {
+    console.log('[ProtectedRoute] Skipping auth check during build time');
+    return <>{children}</>;
+  }
+  
   const { state } = useAuthStore();
   const { user, authLoading } = state;
   const router = useRouter();

@@ -12,6 +12,16 @@ interface AppShellProps {
 }
 
 const AppShell = ({ children }: AppShellProps) => {
+  // BUILD-TIME GUARD: Skip auth checks during static build
+  if (typeof window === 'undefined') {
+    console.log('[AppShell] Skipping auth check during build time');
+    return (
+      <div className="min-h-screen bg-background">
+        {children}
+      </div>
+    );
+  }
+  
   const { state } = useAuthStore();
   const user = state.user;
   const authLoading = state.authLoading;
