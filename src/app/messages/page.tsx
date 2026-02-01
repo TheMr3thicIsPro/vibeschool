@@ -5,6 +5,7 @@ import { useAuthStore } from '@/context/AuthContext';
 import { getCommunityDB, Conversation, Message, FriendRequest, Profile } from '@/community/db';
 import { SendIcon, PaperclipIcon, MoreVerticalIcon, UsersIcon, UserIcon, UserPlusIcon, UserCheckIcon, UserXIcon, SearchIcon } from 'lucide-react';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import SkeletonLoader from '@/components/SkeletonLoader';
 
 interface MessagesPageProps {
   db?: any;
@@ -325,8 +326,21 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
           {activeTab === 'messages' && (
             <>
               {loading && (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {/* Skeleton for conversation list */}
+                  <div className="space-y-4">
+                    {[0, 1, 2, 3, 4].map((_, index) => (
+                      <div key={index} className="p-4 border-b border-gray-700">
+                        <div className="flex items-center space-x-3">
+                          <SkeletonLoader className="w-10 h-10 rounded-full" />
+                          <div className="flex-1">
+                            <SkeletonLoader className="h-4 w-3/4 mb-2" />
+                            <SkeletonLoader className="h-3 w-1/2" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               
