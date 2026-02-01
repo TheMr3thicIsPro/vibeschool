@@ -37,6 +37,8 @@ const DashboardPage = () => {
     if (didRun.current) return
     didRun.current = true
 
+    console.debug("[Dashboard] loading start");
+    
     ;(async () => {
       try {
         // Check for valid session before trying to ensure profile
@@ -58,6 +60,7 @@ const DashboardPage = () => {
         console.error("Failed to ensure profile", e)
       } finally {
         setLoading(false);
+        console.debug("[Dashboard] loading complete");
       }
     })()
   }, [user, supabase]);
@@ -65,7 +68,7 @@ const DashboardPage = () => {
   const loadDashboardData = async (profile: any, userId: string) => {
     try {
       // Debug print to show account role and plan
-      console.log('DEBUG: Account role and plan:', {
+      console.debug('DEBUG: Account role and plan:', {
         userId: userId,
         role: profile?.role,
         plan: profile?.plan,
@@ -86,14 +89,14 @@ const DashboardPage = () => {
       const continueItems = await getContinueLearningItems(userId, 3);
       
       // DEBUG: Log continue learning items
-      console.log('DEBUG: Dashboard - Continue learning items:', continueItems);
+      console.debug('DEBUG: Dashboard - Continue learning items:', continueItems);
       
       // Debug: Log the number of published courses available
       const { data: allPublishedCourses, error: publishedCoursesError } = await supabase
         .from('courses')
         .select('id')
         .eq('is_published', true);
-      console.log('DEBUG: Total published courses available:', allPublishedCourses?.length || 0);
+      console.debug('DEBUG: Total published courses available:', allPublishedCourses?.length || 0);
       
       // Calculate overall progress
       let totalLessons = 0;
@@ -141,6 +144,18 @@ const DashboardPage = () => {
         }));
       }
       
+      // Log data summary for debugging
+      const dataSummary = {
+        profile: !!profile,
+        userId,
+        announcementsCount: announcementsData.length,
+        continueItemsCount: continueItems.length,
+        totalLessons,
+        completedLessons,
+        progressPercent
+      };
+      console.debug('[Dashboard] data', dataSummary);
+      
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     }
@@ -158,9 +173,9 @@ const DashboardPage = () => {
         return
       }
       
-      console.log('fetchProfile: Attempting to ensure profile for user:', user?.id);
+      console.debug('fetchProfile: Attempting to ensure profile for user:', user?.id);
       const data = await ensureProfile(supabase, user!);
-      console.log('fetchProfile: Got profile data:', data);
+      console.debug('fetchProfile: Got profile data:', data);
       setProfile(data);
       
       // Reload dashboard data with new profile
@@ -168,11 +183,11 @@ const DashboardPage = () => {
         await loadDashboardData(data, user.id);
       }
     } catch (err: any) {
-      console.log('fetchProfile: Error caught:', err);
+      console.debug('fetchProfile: Error caught:', err);
       // If profile doesn't exist, the error is expected
       // Don't log if it's the 'Row not found' error
       if (err?.message?.includes('Row not found') || err?.code === 'DATA_RETURNS_NO_ROWS') {
-        console.log('Profile does not exist yet, this is expected for new users');
+        console.debug('Profile does not exist yet, this is expected for new users');
       } else {
         console.error('Failed to load profile:', err);
       }
@@ -180,6 +195,7 @@ const DashboardPage = () => {
       setLoading(false);
     }
   };
+
 
 
   // Admin access check (keeping for potential future use)
