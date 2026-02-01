@@ -14,11 +14,14 @@ import { getContinueLearningItems, getCourseProgress } from '@/services/courseNa
 import SkeletonLoader from '@/components/SkeletonLoader';
 
 const DashboardPage = () => {
+  console.debug('[Dashboard] component mounted');
   const { state } = useAuthStore();
   const user = state.user;
+  console.debug('[Dashboard] user from auth state:', user ? { id: user.id, email: user.email } : 'no user');
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  console.debug('[Dashboard] initial loading state:', true);
 
   const [dashboardStats, setDashboardStats] = useState({
     progressPercent: 0,
@@ -31,41 +34,61 @@ const DashboardPage = () => {
   // Removed tab state since we're keeping dashboard as single view
 
   const didRun = useRef(false)
+  console.debug('[Dashboard] didRun ref initialized:', didRun.current);
 
   useEffect(() => {
-    if (!user) return
-    if (didRun.current) return
+    console.debug('[Dashboard] useEffect triggered');
+    console.debug('[Dashboard] user in effect:', user ? { id: user.id } : 'no user');
+    console.debug('[Dashboard] didRun.current before check:', didRun.current);
+    
+    if (!user) {
+      console.debug('[Dashboard] no user, returning early');
+      return
+    }
+    if (didRun.current) {
+      console.debug('[Dashboard] didRun already executed, returning early');
+      return
+    }
+    console.debug('[Dashboard] setting didRun to true');
     didRun.current = true
 
     console.debug("[Dashboard] loading start");
     
     ;(async () => {
       try {
+        console.debug('[Dashboard] getting session');
         // Check for valid session before trying to ensure profile
         const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
+        console.debug('[Dashboard] session data received:', { hasSession: !!sessionData?.session, hasError: !!sessionErr });
         const session = sessionData?.session
 
         if (!session?.access_token) {
-          console.warn("No session yet, skipping profile ensure for now")
+          console.warn("[Dashboard] No session access token, skipping profile ensure for now")
           setLoading(false)
+          console.debug('[Dashboard] loading set to false due to no session');
           return
         }
         
+        console.debug('[Dashboard] ensuring profile');
         const profile = await ensureProfile(supabase, user)
+        console.debug('[Dashboard] profile ensured:', profile);
         setProfile(profile)
         
         // Load dashboard data
+        console.debug('[Dashboard] loading dashboard data');
         await loadDashboardData(profile, user.id);
       } catch (e) {
-        console.error("Failed to ensure profile", e)
+        console.error("[Dashboard] Failed to ensure profile", e)
       } finally {
         setLoading(false);
+        console.debug('[Dashboard] loading set to false in finally');
         console.debug("[Dashboard] loading complete");
       }
     })()
   }, [user, supabase]);
 
   const loadDashboardData = async (profile: any, userId: string) => {
+    console.debug('[Dashboard] loadDashboardData called with:', { profile: !!profile, userId });
     try {
       // Debug print to show account role and plan
       console.debug('DEBUG: Account role and plan:', {
@@ -76,22 +99,27 @@ const DashboardPage = () => {
       });
       
       // Load announcements
+      console.debug('[Dashboard] loading announcements');
       const announcementsData = await getLatestAnnouncements(10);
+      console.debug('[Dashboard] announcements loaded:', announcementsData.length);
       setAnnouncements(announcementsData);
       
       // Set the joined date
+      console.debug('[Dashboard] setting joined date');
       setDashboardStats(prev => ({
         ...prev,
         joined: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'
       }));
       
       // Get continue learning items using the new service
+      console.debug('[Dashboard] loading continue learning items');
       const continueItems = await getContinueLearningItems(userId, 3);
       
       // DEBUG: Log continue learning items
       console.debug('DEBUG: Dashboard - Continue learning items:', continueItems);
       
       // Debug: Log the number of published courses available
+      console.debug('[Dashboard] counting published courses');
       const { data: allPublishedCourses, error: publishedCoursesError } = await supabase
         .from('courses')
         .select('id')
@@ -103,6 +131,7 @@ const DashboardPage = () => {
       let completedLessons = 0;
       
       // Get all courses to calculate total progress
+      console.debug('[Dashboard] calculating progress across all courses');
       const { data: allCourses, error: coursesError } = await supabase
         .from('courses')
         .select('id')
@@ -110,6 +139,7 @@ const DashboardPage = () => {
       
       if (allCourses) {
         for (const course of allCourses) {
+          console.debug('[Dashboard] getting progress for course:', course.id);
           const progress = await getCourseProgress(userId, course.id);
           totalLessons += progress.total_lessons;
           completedLessons += progress.completed_lessons;
@@ -117,6 +147,7 @@ const DashboardPage = () => {
       }
       
       const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      console.debug('[Dashboard] calculated progress:', { totalLessons, completedLessons, progressPercent });
       
       setDashboardStats(prev => ({
         ...prev,
@@ -125,6 +156,7 @@ const DashboardPage = () => {
       }));
       
       // Transform continue learning items for display
+      console.debug('[Dashboard] transforming continue items for display');
       const transformedItems = continueItems.map(item => ({
         course_title: item.course.title,
         lesson_title: item.next_lesson.title,
@@ -211,7 +243,9 @@ const DashboardPage = () => {
 
 
 
+  console.debug('[Dashboard] render - loading state:', loading);
   if (loading) {
+    console.debug('[Dashboard] rendering skeleton loading');
     return (
       <ProtectedRoute>
         <AppShell>
@@ -277,6 +311,8 @@ const DashboardPage = () => {
         </AppShell>
       </ProtectedRoute>
     );
+  } else {
+    console.debug('[Dashboard] loading complete, rendering dashboard content');
   }
 
   return (
