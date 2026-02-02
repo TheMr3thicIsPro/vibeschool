@@ -3,6 +3,7 @@
 import { useAuthStore } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
+import GeneralLoadingOverlay from '@/components/GeneralLoadingOverlay';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -28,7 +29,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-2xl font-bold text-accent-primary">Loading...</div>
+        <GeneralLoadingOverlay loadingText="Checking authentication status..." />
       </div>
     );
   }

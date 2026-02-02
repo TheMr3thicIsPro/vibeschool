@@ -12,10 +12,12 @@ import Pricing from '@/components/landing/Pricing';
 import Community from '@/components/landing/Community';
 import FinalCTA from '@/components/landing/FinalCTA';
 
+
 import '@/styles/landing.css';
 
 export default function LandingPage() {
   const [activeSection, setActiveSection] = useState('hero');
+
 
   useEffect(() => {
     // Debug logs for scroll functionality

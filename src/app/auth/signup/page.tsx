@@ -7,6 +7,7 @@ import { useAuthStore } from '@/context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { mapSupabaseAuthError } from '@/lib/authErrors';
 import { supabase } from '@/lib/supabase';
+import GeneralLoadingOverlay from '@/components/GeneralLoadingOverlay';
 
 const SignupPage = () => {
   const [email, setEmail] = useState('');

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { mapSupabaseAuthError } from '@/lib/authErrors';
 import { supabase } from '@/lib/supabase';
+import GeneralLoadingOverlay from '@/components/GeneralLoadingOverlay';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -63,7 +64,7 @@ const LoginPage = () => {
         return;
       }
 
-      router.push('/social');
+      router.push('/dashboard');
     } finally {
       setIsLoading(false);
     }
