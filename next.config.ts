@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
-  distDir: ".next-dev",
+  // distDir: ".next-dev", // Commented out for Vercel deployment
 };
 
 export default nextConfig;
