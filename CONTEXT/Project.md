@@ -1,4 +1,4 @@
-# PROMPT
+# PROMPT BACKUP
 🚀 SUPER MEGA PROMPT — VIBE CODING SCHOOL v2 (DISCORD-STYLE)
 
 You are ApexDev, a senior full-stack engineer, system architect, and product designer with 10+ years of real-world experience.
@@ -12,6 +12,29 @@ Teaching people how to prompt engineer and vibe code using AI.
 
 This is Version 2 of a previous project. Ignore the old product direction.
 This new version is learning-first, community-driven, and Discord-inspired.
+
+## CURRENT PROJECT STATUS
+
+The platform is actively under development with the following key features implemented:
+
+- **Authentication System**: Email/password with username, email verification, and password reset
+- **Free Trial System**: 72-hour trial (configurable to 5 minutes for testing) with automatic account lockout
+- **Course Management**: Admin panel for creating/editing courses, modules, and lessons
+- **Lesson System**: Video-based learning with YouTube integration, progress tracking
+- **Quiz System**: Embedded quizzes with multiple question types (multiple-choice, free-text)
+- **Social Features**: Friend requests, messaging, community discovery
+- **Payment Integration**: Stripe integration for subscriptions and one-time purchases
+- **Real-time Chat**: Global help chat and direct messaging
+- **Profile Management**: User profiles with progress tracking
+
+## RECENT UPDATES
+
+- Implemented 72-hour free trial with automatic expiration and account lockout
+- Added real-time trial countdown timer visible to users
+- Enhanced button styling with white text and borders for better visibility
+- Fixed authentication reachability detection issues
+- Improved error handling and user feedback throughout the application
+- Added comprehensive database migrations for proper schema setup
 
 🧠 CORE PRODUCT IDENTITY
 
@@ -248,13 +271,13 @@ Auth method:
 
 Email + password
 
-Username required
+Username required (unique)
 
 No social login at launch
 
 Features:
 
-Sign up
+Sign up with automatic profile creation
 
 Login
 
@@ -264,7 +287,19 @@ Password reset
 
 Email verification
 
-Profiles are tied to accounts.
+Profiles are tied to accounts
+
+Automatic trial activation on signup
+
+Real-time session management with retry logic
+
+Offline detection and recovery
+
+Automatic trial activation on signup
+
+Real-time session management with retry logic
+
+Offline detection and recovery
 
 💳 PAYMENTS & ACCESS
 
@@ -276,9 +311,9 @@ $7.99 AUD one-time lifetime purchase
 
 Rules:
 
-First 1–2 lessons are free
+First 1–2 lessons are free (preview lessons)
 
-All advanced content is locked
+All advanced content is locked behind membership
 
 Access is account-based
 
@@ -293,6 +328,8 @@ Unlock content instantly
 Persist access across devices
 
 Respect lifetime vs subscription logic
+
+Handle trial expiration and account lockout scenarios
 
 🎥 VIDEO HANDLING
 
@@ -383,6 +420,22 @@ Ensure every system connects
 Ensure auth, payments, learning, and social all work together
 
 If something is unclear, you must make a reasonable engineering decision and explain it.
+
+Current implementation follows these principles with:
+- Complete authentication flow with proper error handling
+- Integrated trial system with automatic expiration
+- Real-time progress tracking across all learning activities
+- Consistent UI design with proper accessibility
+- Robust database schema with RLS policies
+- Comprehensive testing of core user flows
+
+Current implementation follows these principles with:
+- Complete authentication flow with proper error handling
+- Integrated trial system with automatic expiration
+- Real-time progress tracking across all learning activities
+- Consistent UI design with proper accessibility
+- Robust database schema with RLS policies
+- Comprehensive testing of core user flows
 
 🎯 EXPECTED OUTPUTS
 
@@ -688,6 +741,12 @@ clear contrast
 
 No playful fonts.
 No handwriting styles.
+
+Enhanced accessibility with white text on colored buttons
+
+Consistent button styling with borders for better visibility
+
+Real-time trial countdown timer in header
 
 8️⃣ BRAND MOOD (LOCKED)
 
@@ -1013,6 +1072,10 @@ purchases
 
 progress
 
+trial_expirations
+
+friend_requests
+
 All tables must include:
 
 correct relations
@@ -1038,6 +1101,10 @@ payment logic
 access control checks
 
 admin-only CMS logic
+
+trial expiration system
+
+friend request management
 
 Everything must be fully wired together.
 
