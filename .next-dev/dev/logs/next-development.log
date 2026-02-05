@@ -1221,3 +1221,22 @@ Import traces:
 [00:49:41.342] Browser LOG     DEBUG: CourseList - listCourses result: {"data":[{"created_at":"2026-01-17T15:49:39.326035+00:00","description":"Learn how to vibe code","id":"385280af-9220-4956-a26e-8bf444c7974d","is_published":true,"thumbnail_url":null,"title":"VibeCoding"}],"error":null}
 [00:49:41.342] Browser LOG     DEBUG: CourseList - Loaded courses: [{"created_at":"2026-01-17T15:49:39.326035+00:00","description":"Learn how to vibe code","id":"385280af-9220-4956-a26e-8bf444c7974d","is_published":true,"thumbnail_url":null,"title":"VibeCoding"}]
 [00:49:41.342] Browser LOG     DEBUG: CourseList - Finished loading courses, loading state: false
+[00:57:44.806] Browser LOG     [AUTH] listener event {"timestamp":"2026-02-05T10:31:23.687Z","type":"SIGNED_IN","userId":"009c70b5-3fd3-4e40-bd1f-a2edcce051f3"}
+[00:57:44.806] Browser LOG     AuthProvider: Handling SIGNED_IN event for user: 009c70b5-3fd3-4e40-bd1f-a2edcce051f3
+[00:57:44.806] Browser LOG     AuthProvider: Kicking off profile load in background for SIGNED_IN
+[00:57:44.806] Browser LOG     loadProfile start for user: 009c70b5-3fd3-4e40-bd1f-a2edcce051f3
+[00:57:45.025] Browser LOG     [AUTH] listener event {"timestamp":"2026-02-05T10:31:23.908Z","type":"SIGNED_IN","userId":"009c70b5-3fd3-4e40-bd1f-a2edcce051f3"}
+[00:57:45.025] Browser LOG     AuthProvider: Duplicate event detected, skipping
+[00:57:47.256] Browser LOG     ensureProfile: Found existing profile for user: 009c70b5-3fd3-4e40-bd1f-a2edcce051f3
+[00:57:47.256] Browser LOG     loadProfile end for user: 009c70b5-3fd3-4e40-bd1f-a2edcce051f3
+[00:57:47.256] Browser LOG     DEBUG: Admin page - Account role and plan: {"plan":"premium","role":"admin","userId":"009c70b5-3fd3-4e40-bd1f-a2edcce051f3","username":"JohnPork2"}
+[00:57:47.256] Browser LOG     lessonReviewService.getLessonReviewsAdmin: filters {"sort":"newest"}
+[00:57:47.256] Browser LOG     lessonReviewService.getLessonReviewsAdmin: filters {"sort":"newest"}
+[00:57:48.254] Browser LOG     DEBUG: Admin page - Account role and plan: {"plan":"premium","role":"admin","userId":"009c70b5-3fd3-4e40-bd1f-a2edcce051f3","username":"JohnPork2"}
+[00:57:48.254] Browser LOG     lessonReviewService.getLessonReviewsAdmin: returned 1
+[00:57:48.254] Browser LOG     LessonReviewsAdmin: loaded reviews 1
+[00:57:49.254] Browser LOG     lessonReviewService.getLessonReviewsAdmin: returned 1
+[00:57:49.254] Browser LOG     LessonReviewsAdmin: loaded reviews 1
+[01:41:04.264] Browser LOG     [AUTH] listener event {"timestamp":"2026-02-05T11:14:42.171Z","type":"TOKEN_REFRESHED","userId":"009c70b5-3fd3-4e40-bd1f-a2edcce051f3"}
+[01:41:04.264] Browser LOG     AuthProvider: Handling TOKEN_REFRESHED event
+[01:51:43.430] Server  LOG       Reload env: .env.local
