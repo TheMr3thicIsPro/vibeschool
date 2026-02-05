@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useRef, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
 import { initAuthListener } from '@/lib/authListener';
 import { ensureProfile } from '@/lib/ensureProfile';
@@ -78,6 +78,7 @@ const authReducer = (state: UserState, action: Action): UserState => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const [hydrated, setHydrated] = useState(false);
   const authSubscriptionRef = useRef<any>(null);
   const broadcastListenerRef = useRef<(() => void) | null>(null);
   const handlingAuthEventRef = useRef(false); // Prevent duplicate auth event handling
@@ -88,6 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
   const initInFlightRef = useRef(false);
 
+  // Hydration guard to avoid triggering effects pre-hydration
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   // Initialize auth state on mount
   useEffect(() => {
     // BUILD-TIME GUARD: Skip auth initialization during static build
@@ -96,6 +102,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('[AUTH] BUILD-DEBUG: Setting authLoading to false for static render');
       dispatch({ type: 'SET_AUTH_LOADING', payload: false });
       console.log('[AUTH] BUILD-DEBUG: Auth init skipped successfully');
+      return;
+    }
+    
+    if (!hydrated) {
+      // Wait for hydration to complete to reduce hydration mismatch risk
       return;
     }
     
@@ -125,19 +136,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Check reachability FIRST before creating any client
         console.log('[AUTH] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
         const { testSupabaseReachability } = await import('@/lib/supabase');
-        const reachability = await testSupabaseReachability(process.env.NEXT_PUBLIC_SUPABASE_URL!, 5000);
+        const timeoutMs = process.env.NODE_ENV === 'development' ? 1500 : 5000;
+        const reachability = await testSupabaseReachability(process.env.NEXT_PUBLIC_SUPABASE_URL!, timeoutMs);
         
         console.log('[AUTH] reachability result', reachability);
         
+        // Be more lenient with reachability - treat AbortError/TypeError (e.g., CORS/blocked) as offline but do not retry aggressively
+        const isSoftOffline = reachability.error && (reachability.error.includes('AbortError') || reachability.error.includes('TypeError'));
+        
         // Be more lenient with reachability - if we get any response, consider it reachable
-        if (!reachability.ok && reachability.error && !reachability.error.includes('401') && !reachability.error.includes('403')) {
+        if ((!reachability.ok && reachability.error && !reachability.error.includes('401') && !reachability.error.includes('403')) || isSoftOffline) {
           // Mark as offline BEFORE any client creation
           dispatch({ type: 'SET_AUTH_STATUS', payload: 'offline' });
           dispatch({ type: 'SET_ERROR', payload: `Auth offline: ${reachability.error || 'Cannot reach Supabase'}` });
           dispatch({ type: 'SET_AUTH_LOADING', payload: false });
           
-          // Schedule retry with exponential backoff (max 10 retries)
-          if (retryCountRef.current < 10) {
+          // Schedule retry with exponential backoff (max 5 retries in dev to reduce noise)
+          const maxRetries = process.env.NODE_ENV === 'development' ? 5 : 10;
+          if (!isSoftOffline && retryCountRef.current < maxRetries) {
             retryCountRef.current += 1;
             const delay = Math.min(1000 * Math.pow(2, retryCountRef.current - 1), 10000); // Max 10s
             console.log('[AUTH] offline retry scheduled', { 
@@ -157,6 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 initializeAuth(true);
               }
             }, delay);
+          } else if (isSoftOffline) {
+            console.log('[AUTH] soft offline detected (likely CORS/blocked in IDE). Suppressing aggressive retries.');
           } else {
             console.log('[AUTH] max retry attempts reached, staying offline permanently');
             dispatch({ type: 'SET_ERROR', payload: 'Auth permanently offline: Maximum retry attempts exceeded' });
@@ -233,67 +251,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
     
-    // Load profile function that runs in background
-    const loadProfile = async (user: any) => {
-      if (!user?.id) return;
+    initializeAuth();
+
+    return () => {
+      isMounted = false;
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, [hydrated]);
+
+  // Load profile function that runs in background
+  const loadProfile = async (user: any) => {
+    if (!user?.id) return;
+    
+    dispatch({ type: 'SET_PROFILE_LOADING', payload: true });
+    try {
+      console.log('loadProfile start for user:', user.id);
       
-      dispatch({ type: 'SET_PROFILE_LOADING', payload: true });
-      try {
-        console.log('loadProfile start for user:', user.id);
-        
-        // Create a timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Timeout: ensureProfile')), 10000);
-        });
-        
-        // Get client for profile loading
-        const supabase = getSupabaseClient();
-        
-        // Race the ensureProfile call against the timeout
-        const profile = await Promise.race([
-          ensureProfile(supabase, user),
-          timeoutPromise
-        ]);
-        
-        // Check if trial has expired for free users
-        const isTrialExpired = profile?.plan === 'free' && 
+      // Create a timeout promise
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout: ensureProfile')), 10000);
+      });
+      
+      // Get client for profile loading
+      const supabase = getSupabaseClient();
+      
+      // Race the ensureProfile call against the timeout
+      const profile = await Promise.race([
+        ensureProfile(supabase, user),
+        timeoutPromise
+      ]);
+      
+      // Check if trial has expired for free users
+      const isTrialExpired = profile?.plan === 'free' && 
                                profile?.trial_expires_at && 
                                new Date(profile.trial_expires_at) < new Date();
-        
-        // Update profile with trial status
-        const updatedProfile = {
-          ...profile,
-          isTrialExpired,
-          account_locked: profile?.account_locked || isTrialExpired
-        };
-        
-        dispatch({ type: 'SET_PROFILE', payload: updatedProfile });
-        
-        // Update user with profile info
-        const userWithProfile = {
-          ...user,
-          role: updatedProfile?.role,
-          plan: updatedProfile?.plan,
-          username: updatedProfile?.username,
-          isTrialExpired: updatedProfile?.isTrialExpired,
-          account_locked: updatedProfile?.account_locked
-        };
-        
-        dispatch({ type: 'SET_USER', payload: userWithProfile });
-        
-        console.log('loadProfile end for user:', user.id);
-      } catch (error) {
-        console.error('loadProfile error:', error);
-        // Still update user even if profile failed
-        dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
-      } finally {
-        dispatch({ type: 'SET_PROFILE_LOADING', payload: false });
-      }
-    };
+      
+      // Update profile with trial status
+      const updatedProfile = {
+        ...profile,
+        isTrialExpired,
+        account_locked: profile?.account_locked || isTrialExpired
+      };
+      
+      dispatch({ type: 'SET_PROFILE', payload: updatedProfile });
+      
+      // Update user with profile info
+      const userWithProfile = {
+        ...user,
+        role: updatedProfile?.role,
+        plan: updatedProfile?.plan,
+        username: updatedProfile?.username,
+        isTrialExpired: updatedProfile?.isTrialExpired,
+        account_locked: updatedProfile?.account_locked
+      };
+      
+      dispatch({ type: 'SET_USER', payload: userWithProfile });
+      
+      console.log('loadProfile end for user:', user.id);
+    } catch (error) {
+      console.error('loadProfile error:', error);
+      // Still update user even if profile failed
+      dispatch({ type: 'SET_ERROR', payload: (error as Error).message });
+    } finally {
+      dispatch({ type: 'SET_PROFILE_LOADING', payload: false });
+    }
+  };
 
-    // Initialize broadcast listener for cross-tab communication
+  // Initialize broadcast listener for cross-tab communication
+  useEffect(() => {
+    let isMounted = true;
+  
     broadcastListenerRef.current = initAuthListener(dispatch);
-
+  
     // Listen for auth state changes
     const supabase = getSupabaseClient();
     
@@ -395,47 +425,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handlingAuthEventRef.current = false;
       }
     });
+  
+  authSubscriptionRef.current = subscription;
+  
+  // Clean up on unmount
+  return () => {
+    isMounted = false;
+    initInFlightRef.current = false;
+    
+    // Clear any pending retry timeouts
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+      console.log('[AUTH] cleanup: cleared retry timer');
+    }
+    
+    console.log('[AUTH] cleaning up auth subscription');
+    if (authSubscriptionRef.current) {
+      authSubscriptionRef.current.unsubscribe?.();
+      authSubscriptionRef.current = null;
+    }
+    
+    // Clean up broadcast listener
+    if (broadcastListenerRef.current) {
+      broadcastListenerRef.current();
+      broadcastListenerRef.current = null;
+    }
+    
+    // Reset retry count on unmount
+    retryCountRef.current = 0;
+    console.log('[AUTH] cleanup: reset retry count');
+  };
+}, []);
 
-    authSubscriptionRef.current = subscription;
-
-    // Initialize auth state
-    initializeAuth();
-
-    // Clean up on unmount
-    return () => {
-      isMounted = false;
-      initInFlightRef.current = false;
-      
-      // Clear any pending retry timeouts
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-        console.log('[AUTH] cleanup: cleared retry timer');
-      }
-      
-      console.log('[AUTH] cleaning up auth subscription');
-      if (authSubscriptionRef.current) {
-        authSubscriptionRef.current.unsubscribe?.();
-        authSubscriptionRef.current = null;
-      }
-      
-      // Clean up broadcast listener
-      if (broadcastListenerRef.current) {
-        broadcastListenerRef.current();
-        broadcastListenerRef.current = null;
-      }
-      
-      // Reset retry count on unmount
-      retryCountRef.current = 0;
-      console.log('[AUTH] cleanup: reset retry count');
-    };
-  }, []);
-
-  return (
-    <AuthContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AuthContext.Provider>
-  );
+// Ensure the JSX return is inside the component function scope
+return (
+  <AuthContext.Provider value={{ state, dispatch }}>
+    {children}
+  </AuthContext.Provider>
+);
 };
 
 export const useAuthStore = () => {

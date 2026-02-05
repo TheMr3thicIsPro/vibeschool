@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import GeneralLoadingOverlay from '@/components/GeneralLoadingOverlay';
 
 interface ProtectedRouteProps {
@@ -10,21 +10,26 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  // BUILD-TIME GUARD: Skip auth checks during static build
-  if (typeof window === 'undefined') {
-    console.log('[ProtectedRoute] Skipping auth check during build time');
-    return <>{children}</>;
-  }
-  
+  // Hydration guard: ensure first client render matches SSR to avoid mismatch
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
   const { state } = useAuthStore();
   const { user, authLoading } = state;
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (hydrated && !authLoading && !user) {
       router.push('/auth/login');
     }
-  }, [user, authLoading, router]);
+  }, [hydrated, user, authLoading, router]);
+
+  // Until hydrated, render children to match SSR output
+  if (!hydrated) {
+    return <>{children}</>;
+  }
 
   if (authLoading) {
     return (

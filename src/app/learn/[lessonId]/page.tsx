@@ -12,6 +12,7 @@ import { updateUserLessonProgress, markLessonCompleted, getUserLessonProgress, g
 import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizService';
 import { QuizComponent } from '@/components/quiz/QuizComponent';
 import { loadYouTubeIFrameAPI, destroyPlayer } from '@/lib/youtube';
+import LessonReviewForm from '@/components/reviews/LessonReviewForm';
 
 declare global {
   interface Window {
@@ -522,7 +523,10 @@ const LessonPlayer = () => {
           <div className="prose prose-invert max-w-none">
             <p className="text-gray-300">{lesson?.description}</p>
           </div>
-          
+
+          {/* Lesson Review Form: under description, above quiz */}
+          <LessonReviewForm lessonId={lessonId} />
+
           {/* Quiz section */}
           {!quizLoading && quiz && (
             <div id="quiz-section">

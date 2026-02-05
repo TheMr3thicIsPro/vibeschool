@@ -1,0 +1,3 @@
+{
+  "/api/stripe/cancel-subscription/route": "app/api/stripe/cancel-subscription/route.js"
+}

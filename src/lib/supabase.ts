@@ -74,7 +74,7 @@ export async function testSupabaseReachability(url: string, timeoutMs = 3000): P
   } catch (error: any) {
     clearTimeout(timeoutId);
     
-    console.error('[AUTH] reachability failed', {
+    console.warn('[AUTH] reachability warning (non-fatal)', {
       name: error.name,
       message: error.message,
       stack: error.stack?.split('\n')[0],

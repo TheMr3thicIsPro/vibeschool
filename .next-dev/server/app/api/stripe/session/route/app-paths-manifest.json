@@ -1,0 +1,3 @@
+{
+  "/api/stripe/session/route": "app/api/stripe/session/route.js"
+}

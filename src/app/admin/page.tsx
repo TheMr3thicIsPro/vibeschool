@@ -11,6 +11,9 @@ import LessonEditor from '@/components/admin/LessonEditor';
 import AnnouncementManager from '@/components/admin/AnnouncementManager';
 import UserManager from '@/components/admin/UserManager';
 import { Lesson } from '@/types/course';
+// Add Challenges manager import
+import ChallengeManager from '@/components/admin/ChallengeManager';
+import LessonReviewsAdmin from '@/components/admin/LessonReviewsAdmin';
 
 const AdminPage = () => {
   const { state } = useAuthStore();
@@ -230,6 +233,22 @@ const AdminPage = () => {
             </button>
             {profile?.role === 'admin' && (
               <button 
+                onClick={() => setActiveTab('challenges')} 
+                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'challenges' ? 'bg-accent-primary text-white border border-accent-primary' : 'text-gray-300 hover:text-white'}`}
+              >
+                Challenges
+              </button>
+            )}
+            {profile?.role === 'admin' && (
+              <button 
+                onClick={() => setActiveTab('reviews')} 
+                className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'reviews' ? 'bg-accent-primary text-white border border-accent-primary' : 'text-gray-300 hover:text-white'}`}
+              >
+                Lesson Reviews
+              </button>
+            )}
+            {profile?.role === 'admin' && (
+              <button 
                 onClick={() => setActiveTab('users')} 
                 className={`px-4 py-2 rounded-md transition-colors hover-lift ${activeTab === 'users' ? 'bg-accent-primary text-white border border-accent-primary' : 'text-gray-300 hover:text-white'}`}
               >
@@ -344,6 +363,23 @@ const AdminPage = () => {
               <h2 className="text-xl font-bold text-white mb-4">Manage Announcements</h2>
               <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-hidden">
                 <AnnouncementManager />
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'challenges' && profile?.role === 'admin' && (
+            <div className="flex-1 flex flex-col min-h-0">
+              <h2 className="text-xl font-bold text-white mb-4">Manage Challenges</h2>
+              <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-auto min-h-0">
+                <ChallengeManager />
+              </div>
+            </div>
+          )}
+          {activeTab === 'reviews' && profile?.role === 'admin' && (
+            <div className="flex-1 flex flex-col min-h-0">
+              <h2 className="text-xl font-bold text-white mb-4">Lesson Reviews</h2>
+              <div className="flex-1 bg-gray-900 border border-gray-700 rounded-lg overflow-auto min-h-0">
+                <LessonReviewsAdmin />
               </div>
             </div>
           )}

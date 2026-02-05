@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useAuthStore } from '@/context/AuthContext';
 import Sidebar from './Sidebar';
 import TrialTimer from '@/components/TrialTimer';
@@ -12,9 +12,22 @@ interface AppShellProps {
 }
 
 const AppShell = ({ children }: AppShellProps) => {
-  // BUILD-TIME GUARD: Skip auth checks during static build
-  if (typeof window === 'undefined') {
-    console.log('[AppShell] Skipping auth check during build time');
+  // Hydration guard: ensure first client render matches SSR to avoid mismatch
+  // NOTE: SSR build-time guard removed to preserve consistent hook order across renders.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+  
+  // IMPORTANT: Call hooks unconditionally on every render to maintain consistent order
+  const { state } = useAuthStore();
+  const user = state.user;
+  const authLoading = state.authLoading;
+  const profile = state.profile;
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Until hydrated, render SSR-equivalent wrapper
+  if (!hydrated) {
     return (
       <div className="min-h-screen bg-background">
         {children}
@@ -22,12 +35,6 @@ const AppShell = ({ children }: AppShellProps) => {
     );
   }
   
-  const { state } = useAuthStore();
-  const user = state.user;
-  const authLoading = state.authLoading;
-  const profile = state.profile;
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
   // Show sidebar only when user is authenticated
   if (authLoading) {
     return (
