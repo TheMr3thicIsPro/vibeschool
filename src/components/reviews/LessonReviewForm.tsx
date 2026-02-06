@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/context/AuthContext';
 import { upsertLessonReview, getMyLessonReview } from '@/services/lessonReviewService';
 
-export const LessonReviewForm = ({ lessonId }: { lessonId: string }) => {
+export const LessonReviewForm = ({ lessonId, onSubmitted }: { lessonId: string; onSubmitted?: () => void }) => {
   const { state } = useAuthStore();
   const user = state.user;
   const [rating, setRating] = useState<number>(0);
@@ -51,6 +51,7 @@ export const LessonReviewForm = ({ lessonId }: { lessonId: string }) => {
       setMessage(existingReview ? 'Your feedback has been updated. Thank you!' : 'Thanks for your feedback — it helps us improve!');
       setExistingReview({ rating, comment, is_anonymous: isAnonymous });
       console.log('LessonReviewForm: review submitted', { lessonId, rating, isAnonymous });
+      if (onSubmitted) onSubmitted();
     } catch (err: any) {
       console.error('LessonReviewForm: submission error', err);
       const msg = String(err?.message || '');

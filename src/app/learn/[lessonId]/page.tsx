@@ -13,6 +13,7 @@ import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizS
 import { QuizComponent } from '@/components/quiz/QuizComponent';
 import { loadYouTubeIFrameAPI, destroyPlayer } from '@/lib/youtube';
 import LessonReviewForm from '@/components/reviews/LessonReviewForm';
+import { getLessonRatingSummary } from '@/services/lessonReviewService';
 
 declare global {
   interface Window {
@@ -41,7 +42,7 @@ const LessonPlayer = () => {
   const [quizLoading, setQuizLoading] = useState(true);
   const [quizSubmission, setQuizSubmission] = useState<any>(null);
   const [quizPassed, setQuizPassed] = useState(false);
-  
+  const [ratingSummary, setRatingSummary] = useState<{ average: number; count: number } | null>(null);
   const playerRef = useRef<any>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [playerEl, setPlayerEl] = useState<HTMLDivElement | null>(null);
@@ -55,6 +56,17 @@ const LessonPlayer = () => {
       loadLessonData();
     }
   }, [user, lessonId]);
+
+  useEffect(() => {
+    if (lessonId) {
+      getLessonRatingSummary(lessonId as string)
+        .then(setRatingSummary)
+        .catch((err) => {
+          console.warn('LessonPlayer: rating summary unavailable', err);
+          setRatingSummary({ average: 0, count: 0 });
+        });
+    }
+  }, [lessonId]);
 
   const loadLessonData = async () => {
     try {
@@ -524,8 +536,28 @@ const LessonPlayer = () => {
             <p className="text-gray-300">{lesson?.description}</p>
           </div>
 
+          {/* Overall rating summary under the lesson */}
+          {ratingSummary && (
+            <div className="mt-4 p-4 bg-gray-800 border border-gray-700 rounded-lg flex items-center gap-3">
+              <div className="flex items-center">
+                {[1,2,3,4,5].map((i) => (
+                  <svg key={i} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill={ratingSummary.average >= i ? '#fbbf24' : '#4b5563'} className="w-5 h-5">
+                    <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.62L12 2 9.19 8.62 2 9.24l5.46 4.73L5.82 21z" />
+                  </svg>
+                ))}
+              </div>
+              <div className="text-gray-300 text-sm">
+                <span className="font-medium text-white">{ratingSummary.average.toFixed(2)}</span> average · {ratingSummary.count} review{ratingSummary.count !== 1 ? 's' : ''}
+              </div>
+            </div>
+          )}
+
           {/* Lesson Review Form: under description, above quiz */}
-          <LessonReviewForm lessonId={lessonId} />
+          <LessonReviewForm lessonId={lessonId} onSubmitted={() => {
+            getLessonRatingSummary(lessonId as string)
+              .then(setRatingSummary)
+              .catch((err) => console.warn('LessonPlayer: rating summary refresh failed', err));
+          }} />
 
           {/* Quiz section */}
           {!quizLoading && quiz && (

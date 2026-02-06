@@ -115,25 +115,35 @@ export const getLessonReviewsAdmin = async (filters: {
     const msg = String((error as any).message || '');
     if (code === 'PGRST205' || msg.includes("Could not find the table")) {
       console.warn('lessonReviewService.getLessonReviewsAdmin: lesson_reviews table missing; returning empty list');
-      return [];
+      return [] as any[];
     }
     console.error('lessonReviewService.getLessonReviewsAdmin: error', error);
     throw error;
   }
+  return data as any[];
+};
 
-  // Hide username in result if is_anonymous = true
-  const mapped = (data || []).map((r: any) => ({
-    id: r.id,
-    lesson_id: r.lesson_id,
-    rating: r.rating,
-    comment: r.comment,
-    is_anonymous: r.is_anonymous,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-    lesson: r.lessons ? { id: r.lessons.id, title: r.lessons.title } : null,
-    user: r.is_anonymous ? null : (r.user ? { id: r.user.id, username: r.user.username } : null),
-  }));
+// Summary: average rating and count for a lesson (for display under the lesson)
+export const getLessonRatingSummary = async (lessonId: string): Promise<{ average: number; count: number }> => {
+  console.log('lessonReviewService.getLessonRatingSummary: lesson', lessonId);
+  const { data, error } = await supabase
+    .from('lesson_reviews')
+    .select('rating')
+    .eq('lesson_id', lessonId);
 
-  console.log('lessonReviewService.getLessonReviewsAdmin: returned', mapped.length);
-  return mapped;
+  if (error) {
+    const code = (error as any).code;
+    const msg = String((error as any).message || '');
+    if (code === 'PGRST205' || msg.includes('Could not find the table') || msg.toLowerCase().includes('not found')) {
+      console.warn('lessonReviewService.getLessonRatingSummary: lesson_reviews table missing; returning zeros');
+      return { average: 0, count: 0 };
+    }
+    console.error('lessonReviewService.getLessonRatingSummary: error', error);
+    throw error;
+  }
+
+  const ratings = (data || []).map((r: any) => Number(r.rating)).filter((n: number) => !isNaN(n));
+  const count = ratings.length;
+  const average = count > 0 ? parseFloat((ratings.reduce((a: number, b: number) => a + b, 0) / count).toFixed(2)) : 0;
+  return { average, count };
 };
