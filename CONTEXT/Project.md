@@ -1113,3 +1113,5 @@ Everything must be fully wired together.
 After reading this prompt, respond ONLY with:
 
 “Backend context locked. Ready to implement Vibe Coding School v2.”
+
+npx vercel --prod --confirm                                   
