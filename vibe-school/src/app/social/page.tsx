@@ -479,7 +479,7 @@ const SocialPage = () => {
         
         // Also load profiles for friend request users
         for (const request of pendingRequests) {
-          const otherUserId = request.requester_id === user?.id ? request.addressee_id : request.requester_id;
+          const otherUserId = request.sender_id === user?.id ? request.receiver_id : request.sender_id;
           const profile = await communityDb.getProfile(otherUserId);
           if (profile && !friendProfiles[otherUserId]) {
             friendProfiles[otherUserId] = profile;
@@ -1105,8 +1105,8 @@ const SocialPage = () => {
                       <div className="space-y-2">
                         {friendRequests.length > 0 ? (
                           friendRequests.map((request: any) => {
-                            const isOutgoing = request.requester_id === user?.id;
-                            const otherUserId = isOutgoing ? request.addressee_id : request.requester_id;
+                            const isOutgoing = request.sender_id === user?.id;
+                            const otherUserId = isOutgoing ? request.receiver_id : request.sender_id;
                             
                             // Get profile from loaded profiles
                             const otherUserProfile = profiles[otherUserId];
@@ -1226,7 +1226,7 @@ const SocialPage = () => {
                             const isAlreadyFriend = friends.some(f => f.friend_id === result.id);
                             const isOwnProfile = result.id === user?.id;
                             const hasSentRequest = friendRequests.some(req => 
-                              req.requester_id === user?.id && req.addressee_id === result.id
+                              req.sender_id === user?.id && req.receiver_id === result.id
                             );
                             
                             return (
@@ -1682,8 +1682,8 @@ const SocialPage = () => {
                     <div className="space-y-3">
                       {friendRequests.length > 0 ? (
                         friendRequests.map((request: any) => {
-                          const isOutgoing = request.requester_id === user?.id;
-                          const otherUserId = isOutgoing ? request.addressee_id : request.requester_id;
+                          const isOutgoing = request.sender_id === user?.id;
+                          const otherUserId = isOutgoing ? request.receiver_id : request.sender_id;
                           
                           // Get profile from loaded profiles
                           const otherUserProfile = profiles[otherUserId];

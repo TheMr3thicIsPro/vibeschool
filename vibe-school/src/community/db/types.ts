@@ -11,8 +11,8 @@ export interface Profile {
 
 export interface FriendRequest {
   id: string;
-  requester_id: string;
-  addressee_id: string;
+  sender_id: string;
+  receiver_id: string;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: string;
   updated_at: string;
@@ -22,6 +22,7 @@ export interface Friend {
   user_id: string;
   friend_id: string;
   created_at: string;
+  friend_details?: Profile;
 }
 
 export interface Conversation {

@@ -19,33 +19,52 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
   const { state } = useAuthStore();
   const user = state.user;
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const timeoutId = setTimeout(async () => {
-        try {
-          setLoading(true);
-          const results = await db.searchProfiles(searchQuery);
-          setSearchResults(results);
-          setLoading(false);
-        } catch (err) {
-          console.error('[COMMUNITY] Error searching profiles:', err);
-          setError('Failed to search profiles');
-          setLoading(false);
-        }
-      }, 300);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
-      return () => clearTimeout(timeoutId);
-    } else {
-      setSearchResults([]);
+  const handleSearch = async () => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      return;
     }
-  }, [searchQuery, db]);
+    
+    try {
+      setLoading(true);
+      setError(null);
+      console.debug('[SEARCH] Executing search for:', searchQuery);
+      // Pass currentUser.id to exclude self/friends/pending from results
+      const results = await db.searchProfiles(searchQuery, currentUser?.id);
+      console.debug('[SEARCH] Results returned:', results.length);
+      setSearchResults(results);
+    } catch (err) {
+      console.error('[COMMUNITY] Error searching profiles:', err);
+      setError('Failed to search profiles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
 
   const handleAddFriend = async (userId: string) => {
     try {
+      console.log('[FRIEND REQUEST] sending', { senderId: currentUser.id, receiverId: userId });
+      
+      // Optimistically update UI
+      setSentRequests(prev => new Set(prev).add(userId));
+      
       await db.createFriendRequest(currentUser.id, userId);
-      // Update UI to reflect the request was sent
+      
     } catch (err) {
       console.error('[COMMUNITY] Error sending friend request:', err);
+      // Revert optimistic update
+      setSentRequests(prev => {
+        const next = new Set(prev);
+        next.delete(userId);
+        return next;
+      });
     }
   };
 
@@ -90,17 +109,27 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <SearchIcon className="h-5 w-5 text-gray-400" />
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <SearchIcon className="h-5 w-5 text-gray-400" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
+            placeholder="Search users (min 2 chars)..."
+          />
         </div>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-700 rounded-lg bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-primary focus:border-transparent"
-          placeholder="Search users by username or display name..."
-        />
+        <button
+          onClick={handleSearch}
+          disabled={loading || searchQuery.trim().length < 2}
+          className="px-4 py-2 bg-accent-primary text-white rounded-lg hover:bg-accent-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+        >
+          {loading ? 'Searching...' : 'Search'}
+        </button>
       </div>
 
       {error && (
@@ -140,13 +169,17 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
               </div>
               
               <div className="flex space-x-2">
-                <button
-                  onClick={() => handleAddFriend(profile.id)}
-                  className="p-2 rounded-full bg-gray-700 hover:bg-accent-primary hover:text-white transition-colors border border-accent-primary"
-                  title="Add Friend"
-                >
-                  <UserPlusIcon className="w-4 h-4" />
-                </button>
+                {sentRequests.has(profile.id) ? (
+                   <span className="text-xs text-green-500 flex items-center px-2">Request Sent</span>
+                ) : (
+                  <button
+                    onClick={() => handleAddFriend(profile.id)}
+                    className="p-2 rounded-full bg-gray-700 hover:bg-accent-primary hover:text-white transition-colors border border-accent-primary"
+                    title="Add Friend"
+                  >
+                    <UserPlusIcon className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={() => handleMessage(profile.id)}
                   className="p-2 rounded-full bg-gray-700 hover:bg-blue-600 transition-colors"

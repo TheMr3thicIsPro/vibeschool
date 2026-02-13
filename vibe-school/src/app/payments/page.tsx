@@ -190,6 +190,11 @@ const PaymentsPage = () => {
                     
                     <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
                     <div className="mb-4">
+                      {plan.id === 'subscription' && (
+                        <div className="inline-block bg-gradient-to-r from-[#ff4d4d] to-[#f9cb28] text-black text-[10px] font-bold px-2 py-0.5 rounded-full mb-2 uppercase tracking-wider shadow-[0_0_10px_rgba(255,77,77,0.3)]">
+                          Limited Time Offer
+                        </div>
+                      )}
                       <div className="mb-2">
                         <span className="text-3xl font-bold text-white">{plan.price}</span>
                         <span className="text-gray-400"> {plan.period}</span>

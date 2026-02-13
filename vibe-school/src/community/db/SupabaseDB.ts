@@ -61,34 +61,74 @@ export class SupabaseDB implements CommunityDB {
     return updatedData as Profile;
   }
 
-  async searchProfiles(query: string): Promise<Profile[]> {
-    const { data, error } = await this.supabase
+  async searchProfiles(query: string, excludeUserId?: string): Promise<Profile[]> {
+    // Sanitize query to avoid breaking .or() syntax which uses commas as delimiters
+    const sanitizedQuery = query.replace(/,/g, ' ').trim();
+    console.log('[SEARCH] Searching profiles with query:', sanitizedQuery);
+    
+    // 1. Search profiles matching query
+    const { data: profiles, error } = await this.supabase
       .from('profiles')
       .select('*')
-      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`);
+      .or(`username.ilike.%${sanitizedQuery}%,display_name.ilike.%${sanitizedQuery}%`)
+      .limit(20);
 
     if (error) {
-      if (this.DEBUG_COMMUNITY) {
-        console.error('[COMMUNITY][SupabaseDB] searchProfiles error', error);
-      }
+      console.error('[SEARCH] Error searching profiles:', error);
+      return [];
+    }
+    
+    if (!profiles || profiles.length === 0) {
+      console.log('[SEARCH] No profiles found matching query');
       return [];
     }
 
-    if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] searchProfiles', { query, results: data?.length || 0 });
+    // 2. Get current user to filter results
+    const { data: { user } } = await this.supabase.auth.getUser();
+    if (!user) {
+      console.log('[SEARCH] No authenticated user, returning all matches');
+      return profiles as Profile[];
     }
-    return data as Profile[];
+    const currentUserId = user.id;
+
+    // 3. Get existing friends and pending requests to exclude
+    const [friends, requests] = await Promise.all([
+      this.getFriends(currentUserId),
+      this.getFriendRequests(currentUserId)
+    ]);
+
+    const friendIds = new Set(friends.map(f => f.friend_id));
+    const pendingIds = new Set(requests.map(r => 
+      r.sender_id === currentUserId ? r.receiver_id : r.sender_id
+    ));
+
+    // 4. Filter results
+    const filtered = profiles.filter(p => 
+      p.id !== currentUserId && // Exclude self
+      !friendIds.has(p.id) &&   // Exclude friends
+      !pendingIds.has(p.id)     // Exclude pending requests
+    );
+
+    if (this.DEBUG_COMMUNITY) {
+      console.log('[SEARCH] Results:', { 
+        raw: profiles.length, 
+        filtered: filtered.length,
+        excluded: profiles.length - filtered.length
+      });
+    }
+    
+    return filtered as Profile[];
   }
 
   // Friend Requests
-  async createFriendRequest(requesterId: string, addresseeId: string): Promise<FriendRequest> {
+  async createFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest> {
+    console.log('[FRIEND REQUEST] sending', { senderId, receiverId });
+    
     const newRequest = {
-      id: crypto.randomUUID(),
-      requester_id: requesterId,
-      addressee_id: addresseeId,
+      sender_id: senderId,
+      receiver_id: receiverId,
       status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      // created_at and updated_at are handled by default/triggers or Supabase but we can set them if needed
     };
 
     const { data, error } = await this.supabase
@@ -98,19 +138,17 @@ export class SupabaseDB implements CommunityDB {
       .single();
 
     if (error) {
-      if (this.DEBUG_COMMUNITY) {
-        console.error('[COMMUNITY][SupabaseDB] createFriendRequest error', error);
-      }
+      console.error('[FRIEND REQUEST] Error creating request:', error);
       throw error;
     }
 
-    if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] createFriendRequest', { requesterId, addresseeId, requestId: data.id });
-    }
+    console.log('[FRIEND REQUEST] created successfully:', data.id);
     return data as FriendRequest;
   }
 
   async updateFriendRequest(requestId: string, status: 'accepted' | 'declined' | 'cancelled'): Promise<FriendRequest> {
+    console.log('[FRIEND REQUEST] updating', { requestId, status });
+    
     const { data, error } = await this.supabase
       .from('friend_requests')
       .update({ 
@@ -122,32 +160,31 @@ export class SupabaseDB implements CommunityDB {
       .single();
 
     if (error) {
-      if (this.DEBUG_COMMUNITY) {
-        console.error('[COMMUNITY][SupabaseDB] updateFriendRequest error', error);
-      }
+      console.error('[FRIEND REQUEST] Error updating request:', error);
       throw error;
     }
 
-    // If accepted, create friendship entries
+    // If accepted, create friendship entries (Mutual)
     if (status === 'accepted' && data) {
       const request = data as FriendRequest;
       const friendEntry1 = {
-        user_id: request.requester_id,
-        friend_id: request.addressee_id,
-        created_at: new Date().toISOString(),
+        user_id: request.sender_id,
+        friend_id: request.receiver_id,
       };
       const friendEntry2 = {
-        user_id: request.addressee_id,
-        friend_id: request.requester_id,
-        created_at: new Date().toISOString(),
+        user_id: request.receiver_id,
+        friend_id: request.sender_id,
       };
 
-      await this.supabase.from('friends').insert([friendEntry1, friendEntry2]);
+      console.log('[FRIEND REQUEST] Creating mutual friendship entries');
+      const { error: friendError } = await this.supabase.from('friends').insert([friendEntry1, friendEntry2]);
+      
+      if (friendError) {
+        console.error('[FRIEND REQUEST] Error creating friends entries:', friendError);
+        // In a production app, we should probably revert the request status or use a Postgres function
+      }
     }
 
-    if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] updateFriendRequest', { requestId, status });
-    }
     return data as FriendRequest;
   }
 
@@ -155,49 +192,49 @@ export class SupabaseDB implements CommunityDB {
     const { data, error } = await this.supabase
       .from('friend_requests')
       .select('*')
-      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
     if (error) {
-      if (this.DEBUG_COMMUNITY) {
-        console.error('[COMMUNITY][SupabaseDB] getFriendRequests error', error);
-      }
+      console.error('[FRIENDS] Error fetching requests:', error);
       return [];
     }
 
     if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] getFriendRequests', { userId, count: data?.length || 0 });
+      console.log('[FRIENDS] Fetched requests:', { userId, count: data?.length || 0 });
     }
     return data as FriendRequest[];
   }
 
   // Friends
   async getFriends(userId: string): Promise<Friend[]> {
+    // Join with profiles to get friend details
+    // Note: This requires a foreign key relationship in Supabase between friends.friend_id and profiles.id
     const { data, error } = await this.supabase
       .from('friends')
-      .select('*')
+      .select('*, friend_details:profiles!friend_id(*)')
       .eq('user_id', userId);
 
     if (error) {
-      if (this.DEBUG_COMMUNITY) {
-        console.error('[COMMUNITY][SupabaseDB] getFriends error', error);
-      }
+      console.error('[FRIENDS] Error fetching friends:', error);
       return [];
     }
 
     if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] getFriends', { userId, count: data?.length || 0 });
+      console.log('[FRIENDS] Fetched friends:', { userId, count: data?.length || 0 });
     }
     return data as Friend[];
   }
 
   async unfriend(userId: string, friendId: string): Promise<void> {
-    await this.supabase
+    console.log('[FRIENDS] Unfriending', { userId, friendId });
+    
+    const { error } = await this.supabase
       .from('friends')
       .delete()
       .or(`(user_id.eq.${userId},friend_id.eq.${friendId}),(user_id.eq.${friendId},friend_id.eq.${userId})`);
 
-    if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] unfriend', { userId, friendId });
+    if (error) {
+      console.error('[FRIENDS] Error unfriending:', error);
     }
   }
 

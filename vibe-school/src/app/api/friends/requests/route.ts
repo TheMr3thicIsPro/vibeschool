@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
     // Check if request already exists
     const existingRequests = await db.getFriendRequests(userId);
     const existingRequest = existingRequests.find(
-      req => (req.requester_id === userId && req.addressee_id === toUserId) ||
-             (req.requester_id === toUserId && req.addressee_id === userId)
+      req => (req.sender_id === userId && req.receiver_id === toUserId) ||
+             (req.sender_id === toUserId && req.receiver_id === userId)
     );
     
     if (existingRequest && existingRequest.status === 'pending') {
@@ -82,8 +82,8 @@ export async function GET(request: NextRequest) {
     const friendRequests = await db.getFriendRequests(userId);
     
     // Separate incoming and outgoing requests
-    const incoming = friendRequests.filter(req => req.addressee_id === userId && req.status === 'pending');
-    const outgoing = friendRequests.filter(req => req.requester_id === userId && req.status === 'pending');
+    const incoming = friendRequests.filter(req => req.receiver_id === userId && req.status === 'pending');
+    const outgoing = friendRequests.filter(req => req.sender_id === userId && req.status === 'pending');
     
     console.log("[FRIENDREQ] GET requests result", { incoming: incoming.length, outgoing: outgoing.length });
     
