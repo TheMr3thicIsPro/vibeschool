@@ -313,9 +313,9 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 }`}
               >
                 Requests
-                {friendRequests.filter(req => req.addressee_id === user.id && req.status === 'pending').length > 0 && (
+                {friendRequests.filter(req => req.receiver_id === user.id && req.status === 'pending').length > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {friendRequests.filter(req => req.addressee_id === user.id && req.status === 'pending').length}
+                    {friendRequests.filter(req => req.receiver_id === user.id && req.status === 'pending').length}
                   </span>
                 )}
               </button>
@@ -474,21 +474,21 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 {/* Sent requests */}
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Sent Requests</h4>
-                  {friendRequests.filter(req => req.requester_id === user.id).length === 0 ? (
+                  {friendRequests.filter(req => req.sender_id === user.id).length === 0 ? (
                     <p className="text-gray-500 text-sm">No sent requests</p>
                   ) : (
                     <div className="space-y-2">
                       {friendRequests
-                        .filter(req => req.requester_id === user.id)
+                        .filter(req => req.sender_id === user.id)
                         .map((request) => (
                           <div key={request.id} className="p-2 bg-gray-800 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                                  {request.addressee_id.charAt(0).toUpperCase()}
+                                  {request.receiver_id.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                  <p className="font-medium">User {request.addressee_id.substring(0, 8)}</p>
+                                  <p className="font-medium">User {request.receiver_id.substring(0, 8)}</p>
                                   <p className="text-sm text-gray-400 capitalize">Status: {request.status}</p>
                                 </div>
                               </div>
@@ -510,21 +510,21 @@ const MessagesPage: React.FC<MessagesPageProps> = ({ db: propDb, currentUser: pr
                 {/* Received requests */}
                 <div>
                   <h4 className="text-sm font-medium text-gray-400 mb-2">Received Requests</h4>
-                  {friendRequests.filter(req => req.addressee_id === user.id && req.status === 'pending').length === 0 ? (
+                  {friendRequests.filter(req => req.receiver_id === user.id && req.status === 'pending').length === 0 ? (
                     <p className="text-gray-500 text-sm">No pending requests</p>
                   ) : (
                     <div className="space-y-2">
                       {friendRequests
-                        .filter(req => req.addressee_id === user.id && req.status === 'pending')
+                        .filter(req => req.receiver_id === user.id && req.status === 'pending')
                         .map((request) => (
                           <div key={request.id} className="p-2 bg-gray-800 rounded-lg">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-3">
                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent-primary to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                                  {request.requester_id.charAt(0).toUpperCase()}
+                                  {request.sender_id.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                  <p className="font-medium">User {request.requester_id.substring(0, 8)}</p>
+                                  <p className="font-medium">User {request.sender_id.substring(0, 8)}</p>
                                   <p className="text-sm text-gray-400">Sent {new Date(request.created_at).toLocaleDateString()}</p>
                                 </div>
                               </div>

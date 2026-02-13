@@ -1518,7 +1518,7 @@ const SocialPage = () => {
                           const isAlreadyFriend = friends.some(f => f.friend_id === result.id);
                           const isOwnProfile = result.id === user?.id;
                           const hasSentRequest = friendRequests.some(req => 
-                            req.requester_id === user?.id && req.addressee_id === result.id
+                            req.sender_id === user?.id && req.receiver_id === result.id
                           );
                           
                           return (
