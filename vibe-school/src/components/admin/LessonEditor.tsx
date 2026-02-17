@@ -47,7 +47,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
   const [newResourceDesc, setNewResourceDesc] = useState('');
   const [newResourceType, setNewResourceType] = useState<'none' | 'debug' | 'complete' | 'recreate'>('none');
   const [newResourceDifficulty, setNewResourceDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   useEffect(() => {
     if (lesson) {
@@ -136,33 +136,38 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
 
   const handleUploadResource = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lesson || !selectedFile || !newResourceTitle) return;
+    if (!lesson || selectedFiles.length === 0 || !newResourceTitle) return;
 
     setUploadingResource(true);
     try {
-      const formData = new FormData();
-      formData.append('title', newResourceTitle);
-      formData.append('description', newResourceDesc);
-      formData.append('file', selectedFile);
-      formData.append('exercise_type', newResourceType);
-      formData.append('difficulty', newResourceDifficulty);
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        const title =
+          selectedFiles.length > 1
+            ? `${newResourceTitle} - ${file.name}`
+            : newResourceTitle;
+        formData.append('title', title);
+        formData.append('description', newResourceDesc);
+        formData.append('file', file);
+        formData.append('exercise_type', newResourceType);
+        formData.append('difficulty', newResourceDifficulty);
 
-      const { data, error } = await createLessonResource(lesson.id, formData);
-      
-      if (error) {
-        setErrors({ resource: error });
-      } else {
-        // Reset form
+        const { error } = await createLessonResource(lesson.id, formData);
+        if (error) {
+          setErrors({ resource: error });
+          break;
+        }
+      }
+
+      if (!errors.resource) {
         setNewResourceTitle('');
         setNewResourceDesc('');
         setNewResourceType('none');
         setNewResourceDifficulty('beginner');
-        setSelectedFile(null);
+        setSelectedFiles([]);
         setShowResourceForm(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
-        
-        // Reload resources
-        loadResources(lesson.id);
+        await loadResources(lesson.id);
       }
     } catch (err: any) {
       setErrors({ resource: err.message || 'Upload failed' });
@@ -560,14 +565,22 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
                         </div>
 
                         <div>
-                          <label className="block text-xs text-gray-400 mb-1">File</label>
+                          <label className="block text-xs text-gray-400 mb-1">Files</label>
                           <input
                             type="file"
+                            multiple
                             ref={fileInputRef}
-                            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                            onChange={(e) =>
+                              setSelectedFiles(
+                                e.target.files ? Array.from(e.target.files) : []
+                              )
+                            }
                             className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent-primary file:text-white hover:file:bg-accent-primary/90"
                             required
                           />
+                          <p className="mt-1 text-[11px] text-gray-500">
+                            Select one or more files (for folders, select all files or upload a zipped project).
+                          </p>
                         </div>
 
                         {errors.resource && (
