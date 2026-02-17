@@ -8,6 +8,33 @@ export type Course = {
   updated_at: string;
 };
 
+export type LessonResource = {
+  id: string;
+  lesson_id: string;
+  title: string;
+  description: string | null;
+  file_url: string;
+  file_name: string;
+  file_size: number | null;
+  file_type: string; // 'source', 'asset', 'archive', 'pdf', 'other'
+  exercise_type: 'none' | 'debug' | 'complete' | 'recreate';
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  created_at: string;
+  updated_at: string;
+};
+
+export type ResourceSubmission = {
+  id: string;
+  resource_id: string;
+  user_id: string;
+  submission_file_url: string | null;
+  submission_text: string | null;
+  status: 'pending' | 'approved' | 'changes_requested';
+  feedback: string | null;
+  submitted_at: string;
+  updated_at: string;
+};
+
 export type Module = {
   id: string;
   course_id: string;

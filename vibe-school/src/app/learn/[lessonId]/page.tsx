@@ -11,6 +11,7 @@ import { updateUserLessonProgress, getUserLessonProgress, getNextLesson } from '
 import { getQuizByLessonId, getQuizSubmissionByLessonId } from '@/services/quizService';
 import { QuizComponent } from '@/components/quiz/QuizComponent';
 import { AssignmentView } from '@/components/assignment/AssignmentView';
+import { ResourceView } from '@/components/resources/ResourceView';
 import { loadYouTubeIFrameAPI, destroyPlayer } from '@/lib/youtube';
 import LessonReviewForm from '@/components/reviews/LessonReviewForm';
 import { getLessonRatingSummary } from '@/services/lessonReviewService';
@@ -543,6 +544,9 @@ const LessonPlayer = () => {
           <div className="prose prose-invert max-w-none">
             <p className="text-gray-300">{lesson?.description}</p>
           </div>
+
+          {/* Resources & Exercises */}
+          <ResourceView lessonId={lessonId} />
 
           {/* Overall rating summary under the lesson */}
           {ratingSummary && (
