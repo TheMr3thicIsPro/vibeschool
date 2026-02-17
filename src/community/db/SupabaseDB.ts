@@ -61,7 +61,7 @@ export class SupabaseDB implements CommunityDB {
     return updatedData as Profile;
   }
 
-  async searchProfiles(query: string): Promise<Profile[]> {
+  async searchProfiles(query: string, excludeUserId?: string): Promise<Profile[]> {
     const { data, error } = await this.supabase
       .from('profiles')
       .select('*')
@@ -74,21 +74,44 @@ export class SupabaseDB implements CommunityDB {
       return [];
     }
 
-    if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] searchProfiles', { query, results: data?.length || 0 });
+    let results = data as Profile[];
+
+    if (excludeUserId) {
+      // Exclude self
+      results = results.filter(p => p.id !== excludeUserId);
+
+      // Fetch friends
+      const { data: friends } = await this.supabase
+        .from('friends')
+        .select('friend_id')
+        .eq('user_id', excludeUserId);
+      
+      const friendIds = friends?.map((f: any) => f.friend_id) || [];
+      results = results.filter(p => !friendIds.includes(p.id));
+
+      // Fetch pending requests
+      const { data: requests } = await this.supabase
+        .from('friend_requests')
+        .select('sender_id, receiver_id')
+        .or(`sender_id.eq.${excludeUserId},receiver_id.eq.${excludeUserId}`)
+        .eq('status', 'pending');
+        
+      const pendingIds = requests?.map((r: any) => r.sender_id === excludeUserId ? r.receiver_id : r.sender_id) || [];
+      results = results.filter(p => !pendingIds.includes(p.id));
     }
-    return data as Profile[];
+
+    if (this.DEBUG_COMMUNITY) {
+      console.log('[COMMUNITY][SupabaseDB] searchProfiles', { query, excludeUserId, results: results.length });
+    }
+    return results;
   }
 
   // Friend Requests
-  async createFriendRequest(requesterId: string, addresseeId: string): Promise<FriendRequest> {
+  async createFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest> {
     const newRequest = {
-      id: crypto.randomUUID(),
-      requester_id: requesterId,
-      addressee_id: addresseeId,
+      sender_id: senderId,
+      receiver_id: receiverId,
       status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await this.supabase
@@ -105,12 +128,33 @@ export class SupabaseDB implements CommunityDB {
     }
 
     if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][SupabaseDB] createFriendRequest', { requesterId, addresseeId, requestId: data.id });
+      console.log('[COMMUNITY][SupabaseDB] createFriendRequest', { senderId, receiverId, requestId: data.id });
     }
     return data as FriendRequest;
   }
 
   async updateFriendRequest(requestId: string, status: 'accepted' | 'declined' | 'cancelled'): Promise<FriendRequest> {
+    if (status === 'accepted') {
+      const { error } = await this.supabase.rpc('accept_friend_request', { request_id: requestId });
+      if (error) {
+        if (this.DEBUG_COMMUNITY) {
+          console.error('[COMMUNITY][SupabaseDB] accept_friend_request RPC error', error);
+        }
+        throw error;
+      }
+      
+      const { data } = await this.supabase
+        .from('friend_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
+        
+      if (this.DEBUG_COMMUNITY) {
+        console.log('[COMMUNITY][SupabaseDB] updateFriendRequest (RPC)', { requestId, status });
+      }
+      return data as FriendRequest;
+    }
+
     const { data, error } = await this.supabase
       .from('friend_requests')
       .update({ 
@@ -128,23 +172,6 @@ export class SupabaseDB implements CommunityDB {
       throw error;
     }
 
-    // If accepted, create friendship entries
-    if (status === 'accepted' && data) {
-      const request = data as FriendRequest;
-      const friendEntry1 = {
-        user_id: request.requester_id,
-        friend_id: request.addressee_id,
-        created_at: new Date().toISOString(),
-      };
-      const friendEntry2 = {
-        user_id: request.addressee_id,
-        friend_id: request.requester_id,
-        created_at: new Date().toISOString(),
-      };
-
-      await this.supabase.from('friends').insert([friendEntry1, friendEntry2]);
-    }
-
     if (this.DEBUG_COMMUNITY) {
       console.log('[COMMUNITY][SupabaseDB] updateFriendRequest', { requestId, status });
     }
@@ -155,7 +182,7 @@ export class SupabaseDB implements CommunityDB {
     const { data, error } = await this.supabase
       .from('friend_requests')
       .select('*')
-      .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`);
 
     if (error) {
       if (this.DEBUG_COMMUNITY) {

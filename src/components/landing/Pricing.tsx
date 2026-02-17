@@ -35,6 +35,9 @@ export default function Pricing() {
               <h3 className="text-3xl font-bold text-white mb-2">VibeSchool Membership</h3>
               
               <div className="mt-8 mb-6">
+                <div className="inline-block bg-gradient-to-r from-[#ff4d4d] to-[#f9cb28] text-black text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wider shadow-[0_0_15px_rgba(255,77,77,0.5)]">
+                  Limited Time Offer
+                </div>
                 <div className="text-5xl font-bold text-white mb-2">$1.99</div>
                 <div className="text-gray-400">first month</div>
               </div>

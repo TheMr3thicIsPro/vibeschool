@@ -121,28 +121,44 @@ export class LocalDB implements CommunityDB {
     return currentData.profiles.find(p => p.id === userId)!;
   }
 
-  async searchProfiles(query: string): Promise<Profile[]> {
+  async searchProfiles(query: string, excludeUserId?: string): Promise<Profile[]> {
     const data = this.getData();
     const lowerQuery = query.toLowerCase();
-    const results = data.profiles.filter(p => 
+    let results = data.profiles.filter(p => 
       p.username.toLowerCase().includes(lowerQuery) || 
       p.display_name.toLowerCase().includes(lowerQuery)
     );
+
+    if (excludeUserId) {
+      // Exclude self
+      results = results.filter(p => p.id !== excludeUserId);
+
+      // Exclude friends
+      const friends = data.friends.filter(f => f.user_id === excludeUserId).map(f => f.friend_id);
+      results = results.filter(p => !friends.includes(p.id));
+
+      // Exclude pending requests
+      const requests = data.friendRequests.filter(r => 
+        (r.sender_id === excludeUserId || r.receiver_id === excludeUserId) && r.status === 'pending'
+      );
+      const pendingUserIds = requests.map(r => r.sender_id === excludeUserId ? r.receiver_id : r.sender_id);
+      results = results.filter(p => !pendingUserIds.includes(p.id));
+    }
     
     if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][LocalDB] searchProfiles', { query, results: results.length });
+      console.log('[COMMUNITY][LocalDB] searchProfiles', { query, excludeUserId, results: results.length });
     }
     
     return results;
   }
 
   // Friend Requests
-  async createFriendRequest(requesterId: string, addresseeId: string): Promise<FriendRequest> {
+  async createFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest> {
     const currentData = this.getData();
     const newRequest: FriendRequest = {
       id: crypto.randomUUID(),
-      requester_id: requesterId,
-      addressee_id: addresseeId,
+      sender_id: senderId,
+      receiver_id: receiverId,
       status: 'pending',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -152,7 +168,7 @@ export class LocalDB implements CommunityDB {
     this.setData(currentData);
     
     if (this.DEBUG_COMMUNITY) {
-      console.log('[COMMUNITY][LocalDB] createFriendRequest', { requesterId, addresseeId, requestId: newRequest.id });
+      console.log('[COMMUNITY][LocalDB] createFriendRequest', { senderId, receiverId, requestId: newRequest.id });
     }
     
     return newRequest;
@@ -170,13 +186,13 @@ export class LocalDB implements CommunityDB {
       if (status === 'accepted') {
         const request = currentData.friendRequests[index];
         const friendEntry1: Friend = {
-          user_id: request.requester_id,
-          friend_id: request.addressee_id,
+          user_id: request.sender_id,
+          friend_id: request.receiver_id,
           created_at: new Date().toISOString(),
         };
         const friendEntry2: Friend = {
-          user_id: request.addressee_id,
-          friend_id: request.requester_id,
+          user_id: request.receiver_id,
+          friend_id: request.sender_id,
           created_at: new Date().toISOString(),
         };
         currentData.friends.push(friendEntry1, friendEntry2);
@@ -197,7 +213,7 @@ export class LocalDB implements CommunityDB {
   async getFriendRequests(userId: string): Promise<FriendRequest[]> {
     const data = this.getData();
     const requests = data.friendRequests.filter(
-      r => r.addressee_id === userId || r.requester_id === userId
+      r => r.receiver_id === userId || r.sender_id === userId
     );
     
     if (this.DEBUG_COMMUNITY) {

@@ -11,8 +11,8 @@ export interface Profile {
 
 export interface FriendRequest {
   id: string;
-  requester_id: string;
-  addressee_id: string;
+  sender_id: string;
+  receiver_id: string;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   created_at: string;
   updated_at: string;
@@ -22,6 +22,7 @@ export interface Friend {
   user_id: string;
   friend_id: string;
   created_at: string;
+  friend_details?: Profile;
 }
 
 export interface Conversation {
@@ -73,10 +74,10 @@ export interface CommunityDB {
   // Profiles
   getProfile(userId: string): Promise<Profile | null>;
   updateProfile(userId: string, data: Partial<Omit<Profile, 'id' | 'created_at'>>): Promise<Profile>;
-  searchProfiles(query: string): Promise<Profile[]>;
+  searchProfiles(query: string, excludeUserId?: string): Promise<Profile[]>;
 
   // Friend Requests
-  createFriendRequest(requesterId: string, addresseeId: string): Promise<FriendRequest>;
+  createFriendRequest(senderId: string, receiverId: string): Promise<FriendRequest>;
   updateFriendRequest(requestId: string, status: 'accepted' | 'declined' | 'cancelled'): Promise<FriendRequest>;
   getFriendRequests(userId: string): Promise<FriendRequest[]>;
 

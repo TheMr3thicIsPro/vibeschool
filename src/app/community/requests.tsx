@@ -31,9 +31,9 @@ const RequestsTab: React.FC<RequestsTabProps> = ({ db, currentUser }) => {
         // Fetch profiles for all requesters/addressees
         const requestProfiles: Record<string, any> = {};
         for (const request of pendingRequests) {
-          const otherUserId = request.requester_id === currentUser.id 
-            ? request.addressee_id 
-            : request.requester_id;
+          const otherUserId = request.sender_id === currentUser.id 
+            ? request.receiver_id 
+            : request.sender_id;
           const profile = await db.getProfile(otherUserId);
           if (profile) {
             requestProfiles[otherUserId] = profile;
@@ -107,8 +107,8 @@ const RequestsTab: React.FC<RequestsTabProps> = ({ db, currentUser }) => {
       {!loading && requests.length > 0 && (
         <div className="space-y-4">
           {requests.map((request) => {
-            const isOutgoing = request.requester_id === currentUser.id;
-            const otherUserId = isOutgoing ? request.addressee_id : request.requester_id;
+            const isOutgoing = request.sender_id === currentUser.id;
+            const otherUserId = isOutgoing ? request.receiver_id : request.sender_id;
             const profile = profiles[otherUserId];
             
             return (
@@ -143,7 +143,7 @@ const RequestsTab: React.FC<RequestsTabProps> = ({ db, currentUser }) => {
                   ) : (
                     <>
                       <button
-                        onClick={() => handleAcceptRequest(request.id, request.requester_id)}
+                        onClick={() => handleAcceptRequest(request.id, request.sender_id)}
                         className="p-2 rounded-full bg-gray-700 hover:bg-green-600 transition-colors"
                         title="Accept Request"
                       >

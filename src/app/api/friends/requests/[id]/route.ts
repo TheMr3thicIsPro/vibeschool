@@ -38,12 +38,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Only the addressee can accept/decline, only requester can cancel
     if (status === 'accepted' || status === 'declined') {
-      if (friendRequest.addressee_id !== userId) {
+      if (friendRequest.receiver_id !== userId) {
         console.log("[FRIENDREQ] PUT /api/friends/requests/[id] - Not authorized to accept/decline this request", { request: friendRequest, userId });
         return NextResponse.json({ error: "Not authorized to accept/decline this request" }, { status: 403 });
       }
     } else if (status === 'cancelled') {
-      if (friendRequest.requester_id !== userId) {
+      if (friendRequest.sender_id !== userId) {
         console.log("[FRIENDREQ] PUT /api/friends/requests/[id] - Not authorized to cancel this request", { request: friendRequest, userId });
         return NextResponse.json({ error: "Not authorized to cancel this request" }, { status: 403 });
       }
@@ -91,7 +91,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // Only the requester can delete a pending request
-    if (friendRequest.requester_id !== userId || friendRequest.status !== 'pending') {
+    if (friendRequest.sender_id !== userId || friendRequest.status !== 'pending') {
       console.log("[FRIENDREQ] DELETE /api/friends/requests/[id] - Not authorized to delete this request", { request: friendRequest, userId });
       return NextResponse.json({ error: "Not authorized to delete this request" }, { status: 403 });
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Profile } from '@/community/db';
-import { SearchIcon, UserPlusIcon, MailIcon, BanIcon, FlagIcon, MoreHorizontalIcon } from 'lucide-react';
+import { SearchIcon, UserPlusIcon, MailIcon, BanIcon, FlagIcon, MoreHorizontalIcon, CheckIcon } from 'lucide-react';
 import { useAuthStore } from '@/context/AuthContext';
 
 interface DiscoverTabProps {
@@ -15,16 +15,19 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
   const { state } = useAuthStore();
   const user = state.user;
 
   useEffect(() => {
-    if (searchQuery.trim()) {
+    if (searchQuery.trim().length >= 2) {
       const timeoutId = setTimeout(async () => {
         try {
+          console.debug('[SEARCH] query:', searchQuery);
           setLoading(true);
-          const results = await db.searchProfiles(searchQuery);
+          const results = await db.searchProfiles(searchQuery, currentUser?.id);
+          console.debug('[SEARCH] results:', results);
           setSearchResults(results);
           setLoading(false);
         } catch (err) {
@@ -32,20 +35,30 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
           setError('Failed to search profiles');
           setLoading(false);
         }
-      }, 300);
+      }, 500);
 
       return () => clearTimeout(timeoutId);
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery, db]);
+  }, [searchQuery, db, currentUser]);
 
   const handleAddFriend = async (userId: string) => {
     try {
+      // Optimistic update
+      setSentRequests(prev => new Set(prev).add(userId));
+      console.log('[FRIEND REQUEST] sending', { senderId: currentUser.id, receiverId: userId });
+      
       await db.createFriendRequest(currentUser.id, userId);
       // Update UI to reflect the request was sent
     } catch (err) {
       console.error('[COMMUNITY] Error sending friend request:', err);
+      // Revert optimistic update
+      setSentRequests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(userId);
+        return newSet;
+      });
     }
   };
 
@@ -142,10 +155,15 @@ const DiscoverTab: React.FC<DiscoverTabProps> = ({ db, currentUser }) => {
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleAddFriend(profile.id)}
-                  className="p-2 rounded-full bg-gray-700 hover:bg-accent-primary hover:text-white transition-colors border border-accent-primary"
-                  title="Add Friend"
+                  disabled={sentRequests.has(profile.id)}
+                  className={`p-2 rounded-full transition-colors border ${
+                    sentRequests.has(profile.id) 
+                      ? 'bg-green-600/20 text-green-500 border-green-600 cursor-default' 
+                      : 'bg-gray-700 hover:bg-accent-primary hover:text-white border-accent-primary'
+                  }`}
+                  title={sentRequests.has(profile.id) ? "Request Sent" : "Add Friend"}
                 >
-                  <UserPlusIcon className="w-4 h-4" />
+                  {sentRequests.has(profile.id) ? <CheckIcon className="w-4 h-4" /> : <UserPlusIcon className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={() => handleMessage(profile.id)}
