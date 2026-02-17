@@ -637,10 +637,10 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     return { hasAccess: true, isPreview: true };
   }
 
-  // Check if user is a member
+  // Check if user is a member or has a valid trial
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('plan')
+    .select('plan, trial_expires_at')
     .eq('id', userId)
     .maybeSingle(); // Use maybeSingle to handle cases where profile doesn't exist yet
   
@@ -661,9 +661,16 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     return { hasAccess: false, isPreview: false };
   }
 
-  const hasAccess = profile.plan === 'member';
+  let hasAccess = false;
+  if (profile.plan === 'member') {
+    hasAccess = true;
+  } else if (profile.plan === 'free' && profile.trial_expires_at) {
+    const trialExpiresAt = new Date(profile.trial_expires_at);
+    const now = new Date();
+    hasAccess = now < trialExpiresAt;
+  }
   
-  console.log('checkLessonAccess: Member access check result:', { hasAccess, plan: profile.plan });
+  console.log('checkLessonAccess: Member/Trial access check result:', { hasAccess, plan: profile.plan, trialExpiresAt: profile.trial_expires_at });
   return { hasAccess, isPreview: false };
 };
 
