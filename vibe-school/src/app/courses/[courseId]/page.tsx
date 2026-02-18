@@ -110,7 +110,7 @@ const CourseDetailPage = () => {
     }
     
     // Check if user has access based on their plan
-    if (userPlan === 'member') {
+    if (userPlan === 'member' || userPlan === 'premium') {
       router.push(`/learn/${lessonId}`);
       return;
     }
@@ -173,6 +173,10 @@ const CourseDetailPage = () => {
   }
 
   const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
+  const totalDurationSeconds = totalLessons * 900; // Fallback to 15 mins per lesson if duration not available
+  const totalDurationMinutes = Math.ceil(totalDurationSeconds / 60);
+  const totalDurationHours = Math.ceil(totalDurationMinutes / 60);
+  
   const completedLessons = course.progress?.completed_lessons || 0;
   const progressPercent = course.progress?.progress_percent || 0;
 
@@ -274,7 +278,7 @@ const CourseDetailPage = () => {
                           {module.lessons
                             .sort((a, b) => a.order_index - b.order_index)
                             .map((lesson) => {
-                              const canAccess = lesson.is_preview || userPlan === 'member';
+                              const canAccess = lesson.is_preview || userPlan === 'member' || userPlan === 'premium';
                               
                               return (
                                 <div 
@@ -289,7 +293,7 @@ const CourseDetailPage = () => {
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
                                     {lesson.is_preview ? (
                                       <Eye size={16} className="text-blue-400 flex-shrink-0" />
-                                    ) : userPlan === 'member' ? (
+                                    ) : (userPlan === 'member' || userPlan === 'premium') ? (
                                       <Play size={16} className="text-accent-primary flex-shrink-0" />
                                     ) : (
                                       <Lock size={16} className="text-gray-500 flex-shrink-0" />
@@ -302,7 +306,7 @@ const CourseDetailPage = () => {
                                       <span className="text-xs bg-blue-900/50 text-blue-300 px-2 py-1 rounded">Preview</span>
                                     )}
                                     
-                                    {!lesson.is_preview && userPlan === 'member' && (
+                                    {!lesson.is_preview && (userPlan === 'member' || userPlan === 'premium') && (
                                       <CheckCircle size={16} className="text-green-500" />
                                     )}
                                     
@@ -332,8 +336,10 @@ const CourseDetailPage = () => {
                     </div>
                     <div className="bg-gray-800/50 p-4 rounded-lg">
                       <h3 className="font-medium text-white mb-2">Course Duration</h3>
-                      <p className="text-2xl font-bold text-accent-primary">~{Math.ceil(totalLessons * 15 / 60)} hours</p>
-                      <p className="text-sm text-gray-400">Est. {totalLessons * 15} minutes</p>
+                      <p className="text-2xl font-bold text-accent-primary">
+                        {totalDurationHours > 0 ? `~${totalDurationHours} hours` : `${totalDurationMinutes} mins`}
+                      </p>
+                      <p className="text-sm text-gray-400">Est. {totalDurationMinutes} minutes</p>
                     </div>
                   </div>
                   

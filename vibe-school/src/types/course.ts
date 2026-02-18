@@ -53,6 +53,7 @@ export type Lesson = {
   youtube_video_id: string | null;
   is_preview: boolean;
   is_published: boolean;
+  // duration?: number; // Duration in seconds
   created_at: string;
   updated_at: string;
 };

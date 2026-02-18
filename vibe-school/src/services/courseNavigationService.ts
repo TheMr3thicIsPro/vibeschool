@@ -662,9 +662,13 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
   }
 
   let hasAccess = false;
-  if (profile.plan === 'member' || profile.plan === 'premium' || profile.role === 'admin' || profile.role === 'teacher') {
+  
+  // Normalize plan to lower case just in case
+  const plan = profile.plan?.toLowerCase();
+  
+  if (plan === 'member' || plan === 'premium' || profile.role === 'admin' || profile.role === 'teacher') {
     hasAccess = true;
-  } else if (profile.plan === 'free' && profile.trial_expires_at) {
+  } else if (plan === 'free' && profile.trial_expires_at) {
     const trialExpiresAt = new Date(profile.trial_expires_at);
     const now = new Date();
     hasAccess = now < trialExpiresAt;

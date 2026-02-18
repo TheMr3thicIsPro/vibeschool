@@ -23,6 +23,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  // const [duration, setDuration] = useState(15); // Disabled until DB migration
   const [isPreview, setIsPreview] = useState(false);
   const [isPublished, setIsPublished] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
       setTitle(lesson.title || '');
       setDescription(lesson.description || '');
       setYoutubeUrl(lesson.video_url || '');
+      // setDuration(lesson.duration ? Math.round(lesson.duration / 60) : 15);
       setIsPreview(!!lesson.is_preview);
       setIsPublished(!!lesson.is_published);
       setEmbedUrl(lesson.video_url || null);
@@ -221,6 +223,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
           video_url: youtubeUrl,
           is_preview: isPreview,
           is_published: isPublished
+          // duration: duration * 60
         };
         
         const result = await updateLesson(lesson.id, updates);
@@ -232,7 +235,7 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
         }
       } else if (moduleId) {
         // Create new lesson
-        const result = await createLesson(moduleId, title, description, youtubeUrl);
+        const result = await createLesson(moduleId, title, description, youtubeUrl); // duration removed until migration
         if (result.error) {
           setErrors({ general: result.error });
         } else if (result.data) {
@@ -356,6 +359,20 @@ const LessonEditor = ({ lesson, moduleId, onSave, onClose, onCreate }: LessonEdi
                     <p className="mt-1 text-sm text-red-400">{errors.title}</p>
                   )}
                 </div>
+
+                {/* <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">
+                    Duration (minutes) *
+                  </label>
+                  <input
+                    type="number"
+                    value={duration}
+                    onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
+                    className="w-full p-2 rounded bg-gray-800 border border-gray-600 text-white"
+                    placeholder="Duration in minutes"
+                    min="1"
+                  />
+                </div> */}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">

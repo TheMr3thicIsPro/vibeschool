@@ -33,6 +33,7 @@ type Lesson = {
   youtube_video_id: string | null;
   is_preview: boolean;
   is_published: boolean;
+  // duration?: number;
   created_at: string;
   updated_at: string;
 };
@@ -442,6 +443,7 @@ export async function createLesson(
   title: string, 
   description: string, 
   youtubeUrl: string
+  // duration: number = 900 // Default to 15 mins if not provided
 ): Promise<{ data: Lesson | null; error: string | null }> {
   const supabase = await createSupabaseClient();
   
@@ -481,6 +483,7 @@ export async function createLesson(
         order_index: newOrderIndex,
         is_preview: false,
         is_published: true
+        // duration: duration
       }])
       .select()
       .single();

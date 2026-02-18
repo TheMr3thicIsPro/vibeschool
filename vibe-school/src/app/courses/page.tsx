@@ -73,7 +73,7 @@ const CoursesPage = () => {
     }
     
     // Check if user has access based on their plan
-    if (userPlan === 'member') {
+    if (userPlan === 'member' || userPlan === 'premium') {
       router.push(`/learn/${lessonId}`);
       return;
     }
