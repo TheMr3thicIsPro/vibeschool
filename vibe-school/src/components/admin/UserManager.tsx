@@ -154,7 +154,7 @@ const UserManager = () => {
                         className="bg-gray-700 border border-gray-600 rounded text-white text-sm p-1"
                       >
                         <option value="free">Free</option>
-                        <option value="premium">Premium</option>
+                        <option value="member">Premium (Member)</option>
                       </select>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm">

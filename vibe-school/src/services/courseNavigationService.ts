@@ -662,7 +662,7 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
   }
 
   let hasAccess = false;
-  if (profile.plan === 'member') {
+  if (profile.plan === 'member' || profile.plan === 'premium' || profile.role === 'admin' || profile.role === 'teacher') {
     hasAccess = true;
   } else if (profile.plan === 'free' && profile.trial_expires_at) {
     const trialExpiresAt = new Date(profile.trial_expires_at);
@@ -670,7 +670,7 @@ export const checkLessonAccess = async (userId: string, lessonId: string) => {
     hasAccess = now < trialExpiresAt;
   }
   
-  console.log('checkLessonAccess: Member/Trial access check result:', { hasAccess, plan: profile.plan, trialExpiresAt: profile.trial_expires_at });
+  console.log('checkLessonAccess: Member/Trial access check result:', { hasAccess, plan: profile.plan, role: profile.role, trialExpiresAt: profile.trial_expires_at });
   return { hasAccess, isPreview: false };
 };
 
